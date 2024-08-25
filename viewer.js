@@ -125,7 +125,7 @@ function renderPage(num) {
         });
     }
 
-    // Preload avatar iframe on slide 4
+    // Preload avatar iframe on slide 3
     if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
@@ -136,8 +136,8 @@ function renderPage(num) {
         avatarVisible = true;
         positionAvatarIframe();
     } else if (avatarIframe) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
+        // avatarIframe.classList.remove('visible');
+        // avatarVisible = false;
     }
     
     
@@ -190,13 +190,15 @@ function onPrevPage() {
 function onNextPage() {
     if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
         avatarIframe.classList.add('bottom-right');
+        pageNum++;
+        queueRenderPage(pageNum);
         return;
     }
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
-    pageNum++;
-    queueRenderPage(pageNum);
+    // pageNum++;
+    // queueRenderPage(pageNum);
 }
 
 // Fit canvas to screen
