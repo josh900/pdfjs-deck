@@ -225,10 +225,10 @@ function createAvatarIframe(canvas) {
 function positionAvatarIframe(canvas) {
     if (!avatarIframe) return;
 
-    const iframeWidth = '20%'; // 20% of the parent container width
-    const iframeHeight = '20%'; // To maintain a square shape
-    const leftPosition = '72%';
-    const topPosition = '22%';
+    const iframeWidth = '29%'; // 20% of the parent container width
+    const iframeHeight = '36%'; // To maintain a square shape
+    const leftPosition = '65.5%';
+    const topPosition = '27.2%';
 
     avatarIframe.style.width = iframeWidth;
     avatarIframe.style.height = iframeHeight;
