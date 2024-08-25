@@ -82,11 +82,6 @@ function renderPage(num) {
     if (pageCache.has(num)) {
         activeCtx.drawImage(pageCache.get(num), 0, 0);
         transitionSlides(activeCanvas, inactiveCanvas);
-        if (num === 5 && !avatarVisible) {
-            setTimeout(() => {
-                createAvatarIframe(activeCanvas);
-            }, 1000);
-        }
     } else {
         pdfDoc.getPage(num).then(function(page) {
             const viewport = page.getViewport({scale: scale});
@@ -101,13 +96,22 @@ function renderPage(num) {
 
             renderTask.promise.then(function() {
                 transitionSlides(activeCanvas, inactiveCanvas);
-                if (num === 5 && !avatarVisible) {
-                    setTimeout(() => {
-                        createAvatarIframe(activeCanvas);
-                    }, 1000);
-                }
             });
         });
+    }
+
+    // Preload avatar iframe on slide 4
+    if (num === 4 && !avatarIframe) {
+        createAvatarIframe(activeCanvas);
+    }
+
+    // Show avatar iframe on slide 5
+    if (num === 5 && avatarIframe) {
+        avatarIframe.classList.add('visible');
+        avatarVisible = true;
+    } else if (avatarIframe) {
+        avatarIframe.classList.remove('visible');
+        avatarVisible = false;
     }
 }
 
@@ -209,34 +213,27 @@ function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
     avatarIframe = document.createElement('iframe');
     avatarIframe.id = 'avatarIframe';
-    avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk';
+    avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk';
     avatarIframe.style.background = 'transparent';
     avatarIframe.scrolling = 'no';
     viewerContainer.appendChild(avatarIframe);
 
     positionAvatarIframe(canvas);
-
-    setTimeout(() => {
-        console.log("Making avatar iframe visible");
-        avatarIframe.classList.add('visible');
-        avatarVisible = true;
-    }, 100);
 }
 
 // Position avatar iframe
 function positionAvatarIframe(canvas) {
     if (!avatarIframe) return;
 
-    const canvasRect = canvas.getBoundingClientRect();
-    const iframeWidth = canvasRect.width * 0.2;
-    const iframeHeight = iframeWidth;
-    const leftPosition = canvasRect.left + (canvasRect.width * 0.72);
-    const topPosition = canvasRect.top + (canvasRect.height * 0.22);
+    const iframeWidth = '20%'; // 20% of the parent container width
+    const iframeHeight = '20%'; // To maintain a square shape
+    const leftPosition = '72%';
+    const topPosition = '22%';
 
-    avatarIframe.style.width = `${iframeWidth}px`;
-    avatarIframe.style.height = `${iframeHeight}px`;
-    avatarIframe.style.left = `${leftPosition}px`;
-    avatarIframe.style.top = `${topPosition}px`;
+    avatarIframe.style.width = iframeWidth;
+    avatarIframe.style.height = iframeHeight;
+    avatarIframe.style.left = leftPosition;
+    avatarIframe.style.top = topPosition;
 }
 
 // Event listeners
