@@ -258,7 +258,7 @@ function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
     avatarIframe = document.createElement('iframe');
     avatarIframe.id = 'avatarIframe';
-    avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?avatar=fdc710f6-33ba-4514-8cd8-44fc5218fa87&header=false&interfaceMode=simplePushTalk';
+    avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?avatar=e053f447-1455-43df-b76a-9504f9276987&context=7dcc2aa8-dbd9-46b3-8b1c-c953dcd34a50&header=false&interfaceMode=simplePushTalk';
     avatarIframe.style.background = 'transparent';
     avatarIframe.scrolling = 'no';
     avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
