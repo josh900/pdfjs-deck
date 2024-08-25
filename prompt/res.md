@@ -102,15 +102,12 @@ canvas {
 #avatarIframe {
     position: absolute;
     border: none;
-    transition: opacity 0.3s ease-in-out;
+    transition: all 0s ease-in-out;
     opacity: 0;
-    pointer-events: none;
 }
-
 
 #avatarIframe.visible {
     opacity: 1;
-    pointer-events: auto;
 }
 
 #avatarIframe.bottom-right {
@@ -169,31 +166,6 @@ function loadPDF() {
     });
 }
 
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-const debouncedPositionAvatar = debounce(() => {
-    if (avatarVisible) {
-        positionAvatarIframe();
-    }
-}, 100);
-
-window.addEventListener('resize', () => {
-    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
-    fitCanvasToScreen(activeCanvas);
-    debouncedPositionAvatar();
-});
-
-
 // Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
@@ -251,7 +223,7 @@ function renderPage(num) {
     }
 
     // Preload avatar iframe on slide 4
-    if (num === 3 && !avatarIframe) {
+    if (num === 4 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
@@ -259,13 +231,10 @@ function renderPage(num) {
     if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
-        positionAvatarIframe();
     } else if (avatarIframe) {
         avatarIframe.classList.remove('visible');
         avatarVisible = false;
     }
-    
-    
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -347,8 +316,8 @@ function fitCanvasToScreen(canvas) {
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 
-    if (avatarVisible) {
-        positionAvatarIframe();
+    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+        positionAvatarIframe(canvas);
     }
 }
 
@@ -376,28 +345,18 @@ function createAvatarIframe(canvas) {
 }
 
 // Position avatar iframe
-function positionAvatarIframe() {
-    if (!avatarIframe || !avatarVisible) return;
+function positionAvatarIframe(canvas) {
+    if (!avatarIframe) return;
 
-    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
-    const canvasRect = activeCanvas.getBoundingClientRect();
-    const containerRect = viewerContainer.getBoundingClientRect();
+    const iframeWidth = '29%'; // 20% of the parent container width
+    const iframeHeight = '36%'; // To maintain a square shape
+    const leftPosition = '65.5%';
+    const topPosition = '27.2%';
 
-    // These percentages represent the position and size relative to the PDF
-    const relativeWidth = 0.29;
-    const relativeHeight = 0.50;
-    const relativeLeft = 0.655;
-    const relativeTop = 0.180;
-
-    const iframeWidth = canvasRect.width * relativeWidth;
-    const iframeHeight = canvasRect.height * relativeHeight;
-    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
-    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
-
-    avatarIframe.style.width = `${iframeWidth}px`;
-    avatarIframe.style.height = `${iframeHeight}px`;
-    avatarIframe.style.left = `${iframeLeft}px`;
-    avatarIframe.style.top = `${iframeTop}px`;
+    avatarIframe.style.width = iframeWidth;
+    avatarIframe.style.height = iframeHeight;
+    avatarIframe.style.left = leftPosition;
+    avatarIframe.style.top = topPosition;
 }
 
 // Event listeners
@@ -429,13 +388,9 @@ document.addEventListener('touchend', function(e) {
 });
 
 window.addEventListener('resize', () => {
-    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
-    fitCanvasToScreen(activeCanvas);
-    if (avatarVisible) {
-        positionAvatarIframe(activeCanvas);
-    }
+    fitCanvasToScreen(canvas1);
+    fitCanvasToScreen(canvas2);
 });
-
 
 // Fullscreen function
 function toggleFullScreen() {
