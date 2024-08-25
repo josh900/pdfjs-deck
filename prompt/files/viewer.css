@@ -77,15 +77,12 @@ canvas {
 #avatarIframe {
     position: absolute;
     border: none;
-    transition: opacity 0.3s ease-in-out;
+    transition: all 0s ease-in-out;
     opacity: 0;
-    pointer-events: none;
 }
-
 
 #avatarIframe.visible {
     opacity: 1;
-    pointer-events: auto;
 }
 
 #avatarIframe.bottom-right {
