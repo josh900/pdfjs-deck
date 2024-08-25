@@ -31,14 +31,14 @@ canvas2.style.display = 'none';
 // Load the PDF
 function loadPDF() {
     loadingIndicator.classList.remove('hidden');
-    pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
+    pdfjsLib.getDocument('presentation.pdf').promise.then(function(pdf) {
         pdfDoc = pdf;
         totalSlidesSpan.textContent = pdf.numPages;
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
-    }).catch(function (error) {
+    }).catch(function(error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
     });
@@ -70,9 +70,9 @@ window.addEventListener('resize', () => {
 
 function sendAvatarSpeakCommand(text) {
     if (avatarIframe) {
-        avatarIframe.contentWindow.postMessage({ action: 'speak', text: text }, '*');
+      avatarIframe.contentWindow.postMessage({ action: 'speak', text: text }, '*');
     }
-}
+  }
 
 // Preload pages
 function preloadPages(currentPage) {
@@ -80,12 +80,12 @@ function preloadPages(currentPage) {
     pagesToLoad.forEach(pageNumber => {
         if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
             pdfDoc.getPage(pageNumber).then(page => {
-                const viewport = page.getViewport({ scale: scale });
+                const viewport = page.getViewport({scale: scale});
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
                 tempCanvas.height = viewport.height;
                 tempCanvas.width = viewport.width;
-
+                
                 const renderContext = {
                     canvasContext: tempCtx,
                     viewport: viewport
@@ -102,55 +102,56 @@ function preloadPages(currentPage) {
 function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
-
+    
     showSlideInfo();
-
+    
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
     const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
     const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
-
+    
     if (pageCache.has(num)) {
-        activeCtx.drawImage(pageCache.get(num), 0, 0);
-        transitionSlides(activeCanvas, inactiveCanvas);
+      activeCtx.drawImage(pageCache.get(num), 0, 0);
+      transitionSlides(activeCanvas, inactiveCanvas);
     } else {
-        pdfDoc.getPage(num).then(function (page) {
-            const viewport = page.getViewport({ scale: scale });
-            activeCanvas.height = viewport.height;
-            activeCanvas.width = viewport.width;
-
-            const renderContext = {
-                canvasContext: activeCtx,
-                viewport: viewport
-            };
-            const renderTask = page.render(renderContext);
-
-            renderTask.promise.then(function () {
-                transitionSlides(activeCanvas, inactiveCanvas);
-            });
+      pdfDoc.getPage(num).then(function(page) {
+        const viewport = page.getViewport({scale: scale});
+        activeCanvas.height = viewport.height;
+        activeCanvas.width = viewport.width;
+  
+        const renderContext = {
+          canvasContext: activeCtx,
+          viewport: viewport
+        };
+        const renderTask = page.render(renderContext);
+  
+        renderTask.promise.then(function() {
+          transitionSlides(activeCanvas, inactiveCanvas);
         });
+      });
     }
-
+  
+    // Preload avatar iframe on slide 3
+    if (num === 3 && !avatarIframe) {
+      createAvatarIframe(activeCanvas);
+    }
+  
     // Show avatar iframe on slide 4 and trigger speak command after 5 seconds
     if (num === 4 && avatarIframe) {
-        avatarIframe.classList.add('visible');
-        avatarVisible = true;
-        positionAvatarIframe();
-
-        // Trigger speak command after 5 seconds
-        setTimeout(() => {
-            sendAvatarSpeakCommand("Hello there, ask me anything");
-        }, 5000);
-    } else if (num > 4 && avatarIframe) {
-        avatarIframe.classList.add('bottom-right');
+      avatarIframe.classList.add('visible');
+      avatarVisible = true;
+      positionAvatarIframe();
+      
+      // Trigger speak command after 5 seconds
+      setTimeout(() => {
+        sendAvatarSpeakCommand("Hello there, ask me anything");
+      }, 5000);
     } else if (avatarIframe) {
-        avatarIframe.classList.remove('visible');
-        avatarIframe.classList.remove('bottom-right');
-        avatarVisible = false;
+      // avatarIframe.classList.remove('visible');
+      // avatarVisible = false;
     }
+  }
 
-}
-
-
+  
 function transitionSlides(activeCanvas, inactiveCanvas) {
     activeCanvas.style.display = 'block';
     activeCanvas.style.opacity = 0;
@@ -194,14 +195,12 @@ function onPrevPage() {
     queueRenderPage(pageNum);
 }
 
+// Go to next page
 function onNextPage() {
-    if (pageNum === 4 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
         avatarIframe.classList.add('bottom-right');
-        // Wait for the transition to complete before moving to the next page
-        setTimeout(() => {
-            pageNum++;
-            queueRenderPage(pageNum);
-        }, 500); // This matches the transition duration in CSS
+        pageNum++;
+        queueRenderPage(pageNum);
         return;
     }
     if (pageNum >= pdfDoc.numPages) {
@@ -288,8 +287,8 @@ function positionAvatarIframe() {
 }
 
 // Event listeners
-document.addEventListener('keydown', function (e) {
-    switch (e.key) {
+document.addEventListener('keydown', function(e) {
+    switch(e.key) {
         case 'ArrowLeft':
         case 'ArrowUp':
             onPrevPage();
@@ -305,11 +304,11 @@ document.addEventListener('keydown', function (e) {
 document.addEventListener('click', onNextPage);
 
 let touchStartX = 0;
-document.addEventListener('touchstart', function (e) {
+document.addEventListener('touchstart', function(e) {
     touchStartX = e.changedTouches[0].screenX;
 });
 
-document.addEventListener('touchend', function (e) {
+document.addEventListener('touchend', function(e) {
     const touchEndX = e.changedTouches[0].screenX;
     if (touchEndX < touchStartX - 50) onNextPage();
     if (touchEndX > touchStartX + 50) onPrevPage();
@@ -336,7 +335,7 @@ function toggleFullScreen() {
 }
 
 // Add fullscreen event listener
-document.addEventListener('keydown', function (e) {
+document.addEventListener('keydown', function(e) {
     if (e.key === 'f') {
         toggleFullScreen();
     }
