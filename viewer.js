@@ -1,5 +1,8 @@
+import * as pdfjsLib from './build/pdf.mjs';
+
 // Initialize PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'build/pdf.worker.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+
 
 // Variables
 let pdfDoc = null;
