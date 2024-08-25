@@ -496,229 +496,7 @@ Example: <https://mozilla.github.io/pdf.js/web/viewer.html?file=compressed.trac
 
 
 
-
-
-@@@␜-Apple keynote export implementation:
-<!doctype html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Keynote</title><meta name="viewport" content="initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,width=device-width"/><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/></head><body id="body" bgcolor="black"><div id="stageArea"><div id="stage" class="stage"></div><div id="hyperlinkPlane" class="stage"></div></div><div id="slideshowNavigator"></div><div id="slideNumberControl"></div><div id="slideNumberDisplay"></div><div id="helpPlacard"></div><div id="waitingIndicator"><div id="waitingSpinner"></div></div><script src="assets/player/main.js"></script></body></html>
-
-
-
-**UI & Event Handling Customizations**
-
-* **Keyboard Shortcuts:** The code defines a detailed set of keyboard shortcuts (`onKeyPress` function) for various actions:
-* Navigation: Next/previous build, slide, first/last slide.
-* Zoom: Increase/decrease scale.
-* Presentation Control: Exit fullscreen, show/hide slide number, display help.
-* Specific Slide Navigation: Enter a slide number to jump directly.
-
-* **Touch/Gesture Handling:** A `TouchController` class manages touch interactions:
-* Detects single-finger and two-finger swipes for navigation.
-* Distinguishes between taps and swipes based on time and distance thresholds.
-* Handles touch events within a defined track area (likely the slide area).
-* Triggers custom events (`TouchController:TapEvent`, `TouchController:SwipeEvent`) that other parts of the application can listen for.
-
-* **Mouse Interactions:**
-* The `DisplayManager` tracks mouse movements (`handleMouseMove`) to show/hide the cursor after a period of inactivity.
-* Left clicks advance to the next build, right clicks go back to the previous build (`onMouseDown`).
-
-* **Device Orientation:** An `OrientationController` adapts the layout when the device orientation changes (portrait/landscape). It listens for orientation change events and uses a timer to re-layout the display after a short delay to avoid rapid redraws.
-
-* **Slideshow Navigator:**
-* Implements a thumbnail-based slideshow navigator for quick visual navigation.
-* Includes a scrollable area (`navigatorThumbnailScroller`) for handling large numbers of slides.
-* Highlights the currently selected slide using `navigatorThumbnailSelection`.
-
-* **Slide Number Control & Display:**
-* Provides two ways to display the current slide number:
-* `slideNumberControl`: A control with an input field for directly jumping to a slide by typing the number.
-* `slideNumberDisplay`: A simple display of the current slide number.
-
-* **State Management:** The `ShowController` uses a state machine pattern (`changeState`, `leavingState`, `enteringState`) to manage the different phases of the presentation: downloading the script, starting, playing, idling, jumping between scenes, and exiting.
-
-* **Texture/Slide Caching (`slideCache`)**: A `TextureManager` class manages the loading and caching of images and PDFs required for slide rendering. It supports both remote loading (via HTTP) and local loading (likely from the file system).
-
-* **Core Animation Wrapper (`coreAnimationWrapper`)**: A custom abstraction layer built on top of PDF.js to handle Keynote-specific animations and simplify their representation and rendering.
-
-
-
-## 1. Keyboard Shortcut Customization
-
-The core of keyboard shortcut handling lies in the `onKeyPress` function within the `ShowController`. Here's a simplified snippet:
-
-```javascript
-onKeyPress(A, B) {
-// A: keyCode, B: modifier keys (ctrl, shift, etc.)
-
-// Normalize key codes and apply modifiers
-A >= tC && A <= iC && (A = QC + (A - tC));
-A += B.shiftKey ? oC : 0;
-A += B.altKey ? wC : 0;
-A += B.ctrlKey ? EC : 0;
-A += B.metaKey ? aC : 0;
-
-// ... (Check if script is loaded and handle specific shortcuts)
-
-switch (A) {
-case yg: // 'q' key
-this.exitShow(!0);
-break;
-case Ng + oC: // Shift + Down arrow
-case zg + oC: // Shift + Page Down
-case Lg + oC: // Shift + Right arrow
-case Lg: // Right arrow
-case mg: // Page Down
-this.advanceToNextSlide("onKeyPress");
-break;
-// ... (Other shortcuts)
-}
-}
-```
-
-This code snippet demonstrates:
-
-* **Normalization:** Key codes for numeric keys are adjusted to a consistent range.
-* **Modifier Handling:** Modifier keys (Shift, Ctrl, Alt, Meta) are used to create combined shortcuts.
-* **Action Mapping:** Specific shortcuts are mapped to their corresponding actions, like `advanceToNextSlide`.
-
-## 2. Touch/Gesture Handling
-
-The `TouchController` class handles touch interactions:
-
-```javascript
-class tg {
-constructor() {
-// ... (Event listeners for touchstart, touchmove, touchend, etc.)
-
-this.swipeInProgress = !1;
-// ... (Other properties for tracking swipe)
-}
-
-// ... (Other methods)
-
-handleTouchStartEvent(A) { // A: Touch event
-if (!this.swipeInProgress) {
-// ... (Check if touch is within the track area and initialize swipe properties)
-} else {
-// ... (Update finger count if more fingers are added during swipe)
-}
-}
-
-handleTouchEndEvent(A) { // A: Touch event
-if (this.swipeInProgress && A.touches.length === 0) { // Swipe ended
-// ... (Calculate swipe direction and duration)
-
-if (i) { // Tap detected
-// ... (Dispatch TapEvent)
-} else if (o) { // Swipe detected
-// ... (Dispatch SwipeEvent)
-}
-
-// ... (Reset swipe properties)
-}
-}
-}
-```
-
-This illustrates:
-
-* **State Management:** The `swipeInProgress` flag tracks whether a swipe is in progress.
-* **Thresholds:** The code uses time and distance thresholds to differentiate between taps and swipes.
-* **Custom Events:** It dispatches custom events to notify other parts of the application about taps and swipes.
-
-## 3. Core Animation Wrapper
-
-The `coreAnimationWrapper` is a custom abstraction to manage Keynote-specific animations. Let's look at a snippet from the `eB` class, which likely represents this wrapper:
-
-```javascript
-class eB {
-// ... (constructor and other methods)
-
-renderFrameWithContext(A, B, g) {
-// A: shader, B: data buffer, g: layer information
-
-// ... (Get relevant animation data from layer information)
-
-for (/* Loop through animations */) {
-var S = H[p]; // Current animation
-
-// ... (Extract animation properties)
-
-switch (S.property) {
-case "transform.translation":
-// ... (Update translation values)
-break;
-case "transform.rotation.z":
-// ... (Update rotation values)
-break;
-// ... (Other animation property cases)
-}
-}
-
-// ... (Apply transformations, set opacity, bind textures, and draw)
-}
-}
-```
-
-Key takeaways:
-
-* **Data Extraction:** The code retrieves animation properties like translation, rotation, scale, and opacity.
-* **Transformation Logic:** It applies these animations to the objects being rendered, using transformations like translation, rotation, and scaling.
-* **Texture Binding:** Textures are dynamically bound based on the current animation state, enabling smooth transitions.
-
-## 4. Movie Playback
-
-Movie playback is handled in classes like `xB` (for HTML5 video) and likely uses `<iframe>` for embedded web videos:
-
-```javascript
-class xB extends LB {
-constructor(A) {
-// ... (Other initialization)
-
-this.webVideo = A.webVideo;
-this.webVideo ? this.initWebVideo() : this.initVideo();
-}
-
-initVideo() {
-const A = document.createElement("video");
-// ... (Set up video element attributes, source, and controls)
-}
-
-initWebVideo() {
-const A = (this.iframe = document.createElement("iframe"));
-// ... (Set up iframe attributes, source, and border styles)
-}
-
-// ... (Other methods for playback control, etc.)
-}
-```
-
-This highlights:
-
-* **Video Element Creation:** Either a `<video>` element or an `<iframe>` is created based on the `webVideo` flag.
-* **Source Handling:** The correct video source (local or remote) is set for playback.
-* **Playback Control:** The class likely has methods to control video playback (start, stop, loop, etc.).
-
-
-
-@@@␜-
-
-Task:
-
-Use the apple keynote export notes above as it has a really nice implementation of pdfjs similar to what we want to do.
-
-We want to be able to display the presenation.pdf, which is a slide based powerpoint like presentation exported as a pdf. 
-Only display one slide or page at a time.
-Always keep it contained within the browser window without stretching or scaling and filling any empty space with black.
-There should be very minimal UI, but implementations for things like left/right or up/down and space and click and touch swipes for chaning slides. 
-
-I have doesnloaded the main default pdfjs folder with web abd build.
-
-Please create a comprehensive plan for creating a pdfjs site, to display a pdf called "presentation.pdf" which will be saved in the root directory next to web and build folders.
-
-Be as detailed as possible, providing whole code functions and files for anything that needs to be added or modified.
-
-
-Assistant:
+@@@␜-Repo
 
 The following text is a Git repository with code. The structure of the text are sections that begin with ----, followed by a single line containing the file path and file name, followed by a variable amount of lines containing the file contents. The text representing the Git repository ends when the symbols --END-- are encounted. Any further text beyond --END-- are meant to be interpreted as instructions using the aforementioned Git repository as context.
 ----
@@ -767,6 +545,10 @@ canvas {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: opacity 0.4s ease-in-out;
 }
 
 #loadingIndicator {
@@ -775,6 +557,28 @@ canvas {
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 24px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+#loadingIndicator::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid white;
+    border-top: 3px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 #slideInfo {
@@ -785,22 +589,12 @@ canvas {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
     border-radius: 5px;
-}
-
-.hidden {
-    display: none;
-}
-
-
-canvas {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
     transition: opacity 0.3s ease-in-out;
 }
 
-canvas.fade-out {
+.hidden {
     opacity: 0;
+    pointer-events: none;
 }
 ----
 viewer.js
@@ -809,15 +603,17 @@ import * as pdfjsLib from './build/pdf.mjs';
 // Initialize PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
 
-
 // Variables
 let pdfDoc = null;
 let pageNum = 1;
 let pageRendering = false;
 let pageNumPending = null;
 let scale = 1;
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
+const canvas1 = document.createElement('canvas');
+const canvas2 = document.createElement('canvas');
+const ctx1 = canvas1.getContext('2d');
+const ctx2 = canvas2.getContext('2d');
+const pageCache = new Map();
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -826,7 +622,9 @@ const slideInfo = document.getElementById('slideInfo');
 const currentSlideSpan = document.getElementById('currentSlide');
 const totalSlidesSpan = document.getElementById('totalSlides');
 
-viewerContainer.appendChild(canvas);
+viewerContainer.appendChild(canvas1);
+viewerContainer.appendChild(canvas2);
+canvas2.style.display = 'none';
 
 // Load the PDF
 function loadPDF() {
@@ -837,9 +635,34 @@ function loadPDF() {
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
+        preloadPages(pageNum);
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
+    });
+}
+
+// Preload pages
+function preloadPages(currentPage) {
+    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
+    pagesToLoad.forEach(pageNumber => {
+        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
+            pdfDoc.getPage(pageNumber).then(page => {
+                const viewport = page.getViewport({scale: scale});
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.height = viewport.height;
+                tempCanvas.width = viewport.width;
+                
+                const renderContext = {
+                    canvasContext: tempCtx,
+                    viewport: viewport
+                };
+                page.render(renderContext).promise.then(() => {
+                    pageCache.set(pageNumber, tempCanvas);
+                });
+            });
+        }
     });
 }
 
@@ -848,31 +671,57 @@ function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
     
-    canvas.classList.add('fade-out');
+    showSlideInfo();
     
-    setTimeout(() => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
+    const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
+    
+    if (pageCache.has(num)) {
+        activeCtx.drawImage(pageCache.get(num), 0, 0);
+        transitionSlides(activeCanvas, inactiveCanvas);
+    } else {
         pdfDoc.getPage(num).then(function(page) {
             const viewport = page.getViewport({scale: scale});
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            activeCanvas.height = viewport.height;
+            activeCanvas.width = viewport.width;
 
             const renderContext = {
-                canvasContext: ctx,
+                canvasContext: activeCtx,
                 viewport: viewport
             };
             const renderTask = page.render(renderContext);
 
             renderTask.promise.then(function() {
-                pageRendering = false;
-                if (pageNumPending !== null) {
-                    renderPage(pageNumPending);
-                    pageNumPending = null;
-                }
-                fitCanvasToScreen();
-                canvas.classList.remove('fade-out');
+                transitionSlides(activeCanvas, inactiveCanvas);
             });
         });
-    }, 300); // Match this to the transition duration in CSS
+    }
+}
+
+function transitionSlides(activeCanvas, inactiveCanvas) {
+    activeCanvas.style.display = 'block';
+    activeCanvas.style.opacity = 0;
+
+    // Force a reflow to ensure the initial opacity is applied
+    void activeCanvas.offsetWidth;
+
+    activeCanvas.style.opacity = 1;
+    inactiveCanvas.style.opacity = 0;
+
+    // Wait for the transition to complete
+    setTimeout(() => {
+        inactiveCanvas.style.display = 'none';
+        pageRendering = false;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+        }
+        preloadPages(pageNum + 1);
+    }, 400); // This should match the transition duration in the CSS
+
+    fitCanvasToScreen(activeCanvas);
+    fitCanvasToScreen(inactiveCanvas);
 }
 
 // Queue rendering of a page
@@ -902,11 +751,8 @@ function onNextPage() {
     queueRenderPage(pageNum);
 }
 
-
-
-
 // Fit canvas to screen
-function fitCanvasToScreen() {
+function fitCanvasToScreen(canvas) {
     const containerWidth = viewerContainer.clientWidth;
     const containerHeight = viewerContainer.clientHeight;
     const canvasAspect = canvas.width / canvas.height;
@@ -929,7 +775,14 @@ function fitCanvasToScreen() {
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 }
 
-
+// Show slide info and hide after 3 seconds
+function showSlideInfo() {
+    slideInfo.classList.remove('hidden');
+    clearTimeout(slideInfo.hideTimeout);
+    slideInfo.hideTimeout = setTimeout(() => {
+        slideInfo.classList.add('hidden');
+    }, 3000);
+}
 
 // Event listeners
 document.addEventListener('keydown', function(e) {
@@ -959,8 +812,10 @@ document.addEventListener('touchend', function(e) {
     if (touchEndX > touchStartX + 50) onPrevPage();
 });
 
-window.addEventListener('resize', fitCanvasToScreen);
-
+window.addEventListener('resize', () => {
+    fitCanvasToScreen(canvas1);
+    fitCanvasToScreen(canvas2);
+});
 
 // Fullscreen function
 function toggleFullScreen() {
@@ -980,13 +835,54 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-
 // Initialize
 loadPDF();
-
-
-
 --END--
+
+
+@@@␜-Task:
+
+I need to add an additional feature.
+
+The pdf presentation is about a project we are working on (DTM).
+The DTM project featues a talking avatar which will use ai to respond to users questions.
+
+The way it works, is that once you turn on push to talk mode,then you can hold down the push to talk button and it will record and transcribe your audio. Once you let go it sends the audio to the llm for a response, and then to d-id to generate and get back a talking avatar to play to the user.
+
+This is all working ok, and we won't be directly modifying this project. 
+
+However we want to add the dtm talking avatar to the presentation project
+We want to use the avatar in the presentation so that the reader can ask it questions.
+
+On slide 5 of the PDFjs presentation, after it loads and a 1 second delay, we should fade in an iframe of the actual talking avatar app.
+It should be placed exactly where the image of the avatar is in the pdf page 5. 
+The iframe should have a transparent background and feature no scrollbars.
+The exact location of the avatar image on slide 5 is, the left side of the image is at 72% of the width from the left going till 92% and the top edge of the image is at 22% of the height from the top. its a square.
+
+When we click next page, on slide 5, instead of the next page, we want to stay on the current page, but the image of the avatar (now morphed into the iframe) should slide over to the bottom right. 
+
+The avatar iframe should remain there for the remainder of the slides. The next transition should resume to transition to the next slide as normal but while keeping the avatar present.
+
+the link for the dtm app and the link for the iframe is:
+https://avatar.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk
+
+
+
+
+
+Use the apple keynote export notes above as it has a really nice implementation of pdfjs similar to what we want to do.
+
+We want to be able to display the presenation.pdf, which is a slide based powerpoint like presentation exported as a pdf. 
+Only display one slide or page at a time.
+Always keep it contained within the browser window without stretching or scaling and filling any empty space with black.
+There should be very minimal UI, but implementations for things like left/right or up/down and space and click and touch swipes for chaning slides. 
+
+I have doesnloaded the main default pdfjs folder with web abd build.
+
+Please create a comprehensive plan for creating a pdfjs site, to display a pdf called "presentation.pdf" which will be saved in the root directory next to web and build folders.
+
+Be as detailed as possible, providing whole code functions and files for anything that needs to be added or modified.
+
 
 
 Human:
@@ -1001,3 +897,5 @@ Hide the page indicator after 3 seconds, show it on every page transition and th
 
 3. 
 Make the initial loading indicator look better.
+
+

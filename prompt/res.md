@@ -45,6 +45,10 @@ canvas {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: opacity 0.4s ease-in-out;
 }
 
 #loadingIndicator {
@@ -53,6 +57,28 @@ canvas {
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 24px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+#loadingIndicator::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid white;
+    border-top: 3px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 #slideInfo {
@@ -63,22 +89,12 @@ canvas {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
     border-radius: 5px;
-}
-
-.hidden {
-    display: none;
-}
-
-
-canvas {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
     transition: opacity 0.3s ease-in-out;
 }
 
-canvas.fade-out {
+.hidden {
     opacity: 0;
+    pointer-events: none;
 }
 ----
 viewer.js
@@ -87,15 +103,17 @@ import * as pdfjsLib from './build/pdf.mjs';
 // Initialize PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
 
-
 // Variables
 let pdfDoc = null;
 let pageNum = 1;
 let pageRendering = false;
 let pageNumPending = null;
 let scale = 1;
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
+const canvas1 = document.createElement('canvas');
+const canvas2 = document.createElement('canvas');
+const ctx1 = canvas1.getContext('2d');
+const ctx2 = canvas2.getContext('2d');
+const pageCache = new Map();
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -104,7 +122,9 @@ const slideInfo = document.getElementById('slideInfo');
 const currentSlideSpan = document.getElementById('currentSlide');
 const totalSlidesSpan = document.getElementById('totalSlides');
 
-viewerContainer.appendChild(canvas);
+viewerContainer.appendChild(canvas1);
+viewerContainer.appendChild(canvas2);
+canvas2.style.display = 'none';
 
 // Load the PDF
 function loadPDF() {
@@ -115,9 +135,34 @@ function loadPDF() {
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
+        preloadPages(pageNum);
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
+    });
+}
+
+// Preload pages
+function preloadPages(currentPage) {
+    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
+    pagesToLoad.forEach(pageNumber => {
+        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
+            pdfDoc.getPage(pageNumber).then(page => {
+                const viewport = page.getViewport({scale: scale});
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.height = viewport.height;
+                tempCanvas.width = viewport.width;
+                
+                const renderContext = {
+                    canvasContext: tempCtx,
+                    viewport: viewport
+                };
+                page.render(renderContext).promise.then(() => {
+                    pageCache.set(pageNumber, tempCanvas);
+                });
+            });
+        }
     });
 }
 
@@ -126,31 +171,57 @@ function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
     
-    canvas.classList.add('fade-out');
+    showSlideInfo();
     
-    setTimeout(() => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
+    const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
+    
+    if (pageCache.has(num)) {
+        activeCtx.drawImage(pageCache.get(num), 0, 0);
+        transitionSlides(activeCanvas, inactiveCanvas);
+    } else {
         pdfDoc.getPage(num).then(function(page) {
             const viewport = page.getViewport({scale: scale});
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            activeCanvas.height = viewport.height;
+            activeCanvas.width = viewport.width;
 
             const renderContext = {
-                canvasContext: ctx,
+                canvasContext: activeCtx,
                 viewport: viewport
             };
             const renderTask = page.render(renderContext);
 
             renderTask.promise.then(function() {
-                pageRendering = false;
-                if (pageNumPending !== null) {
-                    renderPage(pageNumPending);
-                    pageNumPending = null;
-                }
-                fitCanvasToScreen();
-                canvas.classList.remove('fade-out');
+                transitionSlides(activeCanvas, inactiveCanvas);
             });
         });
-    }, 300); // Match this to the transition duration in CSS
+    }
+}
+
+function transitionSlides(activeCanvas, inactiveCanvas) {
+    activeCanvas.style.display = 'block';
+    activeCanvas.style.opacity = 0;
+
+    // Force a reflow to ensure the initial opacity is applied
+    void activeCanvas.offsetWidth;
+
+    activeCanvas.style.opacity = 1;
+    inactiveCanvas.style.opacity = 0;
+
+    // Wait for the transition to complete
+    setTimeout(() => {
+        inactiveCanvas.style.display = 'none';
+        pageRendering = false;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+        }
+        preloadPages(pageNum + 1);
+    }, 400); // This should match the transition duration in the CSS
+
+    fitCanvasToScreen(activeCanvas);
+    fitCanvasToScreen(inactiveCanvas);
 }
 
 // Queue rendering of a page
@@ -180,11 +251,8 @@ function onNextPage() {
     queueRenderPage(pageNum);
 }
 
-
-
-
 // Fit canvas to screen
-function fitCanvasToScreen() {
+function fitCanvasToScreen(canvas) {
     const containerWidth = viewerContainer.clientWidth;
     const containerHeight = viewerContainer.clientHeight;
     const canvasAspect = canvas.width / canvas.height;
@@ -207,7 +275,14 @@ function fitCanvasToScreen() {
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 }
 
-
+// Show slide info and hide after 3 seconds
+function showSlideInfo() {
+    slideInfo.classList.remove('hidden');
+    clearTimeout(slideInfo.hideTimeout);
+    slideInfo.hideTimeout = setTimeout(() => {
+        slideInfo.classList.add('hidden');
+    }, 3000);
+}
 
 // Event listeners
 document.addEventListener('keydown', function(e) {
@@ -237,8 +312,10 @@ document.addEventListener('touchend', function(e) {
     if (touchEndX > touchStartX + 50) onPrevPage();
 });
 
-window.addEventListener('resize', fitCanvasToScreen);
-
+window.addEventListener('resize', () => {
+    fitCanvasToScreen(canvas1);
+    fitCanvasToScreen(canvas2);
+});
 
 // Fullscreen function
 function toggleFullScreen() {
@@ -258,10 +335,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-
 // Initialize
 loadPDF();
-
-
-
 --END--
