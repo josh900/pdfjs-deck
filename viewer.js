@@ -82,6 +82,11 @@ function renderPage(num) {
     if (pageCache.has(num)) {
         activeCtx.drawImage(pageCache.get(num), 0, 0);
         transitionSlides(activeCanvas, inactiveCanvas);
+        if (num === 5 && !avatarVisible) {
+            setTimeout(() => {
+                createAvatarIframe(activeCanvas);
+            }, 1000);
+        }
     } else {
         pdfDoc.getPage(num).then(function(page) {
             const viewport = page.getViewport({scale: scale});
@@ -151,7 +156,7 @@ function onPrevPage() {
 
 // Go to next page
 function onNextPage() {
-    if (pageNum === 5 && !avatarIframe.classList.contains('bottom-right')) {
+    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
         avatarIframe.classList.add('bottom-right');
         return;
     }
@@ -201,6 +206,7 @@ function showSlideInfo() {
 
 // Create and position avatar iframe
 function createAvatarIframe(canvas) {
+    console.log("Creating avatar iframe");
     avatarIframe = document.createElement('iframe');
     avatarIframe.id = 'avatarIframe';
     avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk';
@@ -211,6 +217,7 @@ function createAvatarIframe(canvas) {
     positionAvatarIframe(canvas);
 
     setTimeout(() => {
+        console.log("Making avatar iframe visible");
         avatarIframe.classList.add('visible');
         avatarVisible = true;
     }, 100);
@@ -218,6 +225,8 @@ function createAvatarIframe(canvas) {
 
 // Position avatar iframe
 function positionAvatarIframe(canvas) {
+    if (!avatarIframe) return;
+
     const canvasRect = canvas.getBoundingClientRect();
     const iframeWidth = canvasRect.width * 0.2;
     const iframeHeight = iframeWidth;
