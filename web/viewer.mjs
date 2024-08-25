@@ -1273,7 +1273,7 @@ class SimpleLinkService extends PDFLinkService {
   setDocument(pdfDocument, baseUrl = null) {}
 }
 
-;// CONCATENATED MODULE: ./web/pdfjs.js
+;// CONCATENATED MODULE: ./web/pdfjs.mjs
 const {
   AbortException,
   AnnotationEditorLayer,
