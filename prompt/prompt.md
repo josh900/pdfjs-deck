@@ -899,3 +899,7 @@ Hide the page indicator after 3 seconds, show it on every page transition and th
 Make the initial loading indicator look better.
 
 
+
+
+
+
