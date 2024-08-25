@@ -44,6 +44,30 @@ function loadPDF() {
     });
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const debouncedPositionAvatar = debounce(() => {
+    if (avatarVisible) {
+        positionAvatarIframe();
+    }
+}, 100);
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    debouncedPositionAvatar();
+});
+
 // Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
@@ -100,18 +124,23 @@ function renderPage(num) {
         });
     }
 
-    // Preload avatar iframe on slide 4
-    if (num === 4 && !avatarIframe) {
+    // Create avatar iframe if it doesn't exist
+    if (!avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
-    // Show avatar iframe on slide 5
-    if (num === 5 && avatarIframe) {
+    // Show avatar iframe on all slides after it's created
+    if (avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
+        positionAvatarIframe();
+    }
+    
+    // Move avatar to bottom right on slide 5 and beyond
+    if (num >= 5 && avatarIframe) {
+        avatarIframe.classList.add('bottom-right');
     } else if (avatarIframe) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
+        avatarIframe.classList.remove('bottom-right');
     }
 }
 
@@ -160,10 +189,6 @@ function onPrevPage() {
 
 // Go to next page
 function onNextPage() {
-    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
-        avatarIframe.classList.add('bottom-right');
-        return;
-    }
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
@@ -194,8 +219,8 @@ function fitCanvasToScreen(canvas) {
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 
-    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
-        positionAvatarIframe(canvas);
+    if (avatarVisible) {
+        positionAvatarIframe();
     }
 }
 
@@ -223,18 +248,56 @@ function createAvatarIframe(canvas) {
 }
 
 // Position avatar iframe
-function positionAvatarIframe(canvas) {
-    if (!avatarIframe) return;
+function positionAvatarIframe() {
+    if (!avatarIframe || !avatarVisible) return;
 
-    const iframeWidth = '29%'; // 20% of the parent container width
-    const iframeHeight = '36%'; // To maintain a square shape
-    const leftPosition = '65.5%';
-    const topPosition = '27.2%';
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
 
-    avatarIframe.style.width = iframeWidth;
-    avatarIframe.style.height = iframeHeight;
-    avatarIframe.style.left = leftPosition;
-    avatarIframe.style.top = topPosition;
+    if (avatarIframe.classList.contains('bottom-right')) {
+        // Position for bottom-right (slide 5 and beyond)
+        const iframeWidth = containerRect.width * 0.2;
+        const iframeHeight = containerRect.height * 0.24;
+        const iframeRight = 20;
+        const iframeBottom = 20;
+
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.right = `${iframeRight}px`;
+        avatarIframe.style.bottom = `${iframeBottom}px`;
+        avatarIframe.style.left = 'auto';
+        avatarIframe.style.top = 'auto';
+    } else {
+        // Position for slides before 5
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
+
+        const iframeWidth = canvasRect.width * relativeWidth;
+        const iframeHeight = canvasRect.height * relativeHeight;
+        const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.left = `${iframeLeft}px`;
+        avatarIframe.style.top = `${iframeTop}px`;
+        avatarIframe.style.right = 'auto';
+        avatarIframe.style.bottom = 'auto';
+    }
+}
+
+// Fullscreen function
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
 }
 
 // Event listeners
@@ -248,6 +311,9 @@ document.addEventListener('keydown', function(e) {
         case 'ArrowDown':
         case ' ':
             onNextPage();
+            break;
+        case 'f':
+            toggleFullScreen();
             break;
     }
 });
@@ -263,29 +329,6 @@ document.addEventListener('touchend', function(e) {
     const touchEndX = e.changedTouches[0].screenX;
     if (touchEndX < touchStartX - 50) onNextPage();
     if (touchEndX > touchStartX + 50) onPrevPage();
-});
-
-window.addEventListener('resize', () => {
-    fitCanvasToScreen(canvas1);
-    fitCanvasToScreen(canvas2);
-});
-
-// Fullscreen function
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-}
-
-// Add fullscreen event listener
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'f') {
-        toggleFullScreen();
-    }
 });
 
 // Initialize
