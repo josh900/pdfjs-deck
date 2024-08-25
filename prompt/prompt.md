@@ -497,7 +497,6 @@ Example: <https://mozilla.github.io/pdf.js/web/viewer.html?file=compressed.trac
 
 
 @@@␜-Repo
-
 The following text is a Git repository with code. The structure of the text are sections that begin with ----, followed by a single line containing the file path and file name, followed by a variable amount of lines containing the file contents. The text representing the Git repository ends when the symbols --END-- are encounted. Any further text beyond --END-- are meant to be interpreted as instructions using the aforementioned Git repository as context.
 ----
 index.html
@@ -602,12 +601,15 @@ canvas {
 #avatarIframe {
     position: absolute;
     border: none;
-    transition: all 0s ease-in-out;
+    transition: opacity 0.3s ease-in-out;
     opacity: 0;
+    pointer-events: none;
 }
+
 
 #avatarIframe.visible {
     opacity: 1;
+    pointer-events: auto;
 }
 
 #avatarIframe.bottom-right {
@@ -666,6 +668,31 @@ function loadPDF() {
     });
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const debouncedPositionAvatar = debounce(() => {
+    if (avatarVisible) {
+        positionAvatarIframe();
+    }
+}, 100);
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    debouncedPositionAvatar();
+});
+
+
 // Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
@@ -722,8 +749,8 @@ function renderPage(num) {
         });
     }
 
-    // Preload avatar iframe on slide 4
-    if (num === 4 && !avatarIframe) {
+    // Preload avatar iframe on slide 3
+    if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
@@ -731,10 +758,13 @@ function renderPage(num) {
     if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
+        positionAvatarIframe();
     } else if (avatarIframe) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
+        // avatarIframe.classList.remove('visible');
+        // avatarVisible = false;
     }
+    
+    
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -784,6 +814,8 @@ function onPrevPage() {
 function onNextPage() {
     if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
         avatarIframe.classList.add('bottom-right');
+        pageNum++;
+        queueRenderPage(pageNum);
         return;
     }
     if (pageNum >= pdfDoc.numPages) {
@@ -816,8 +848,8 @@ function fitCanvasToScreen(canvas) {
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 
-    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
-        positionAvatarIframe(canvas);
+    if (avatarVisible) {
+        positionAvatarIframe();
     }
 }
 
@@ -845,18 +877,28 @@ function createAvatarIframe(canvas) {
 }
 
 // Position avatar iframe
-function positionAvatarIframe(canvas) {
-    if (!avatarIframe) return;
+function positionAvatarIframe() {
+    if (!avatarIframe || !avatarVisible) return;
 
-    const iframeWidth = '29%'; // 20% of the parent container width
-    const iframeHeight = '36%'; // To maintain a square shape
-    const leftPosition = '65.5%';
-    const topPosition = '27.2%';
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
 
-    avatarIframe.style.width = iframeWidth;
-    avatarIframe.style.height = iframeHeight;
-    avatarIframe.style.left = leftPosition;
-    avatarIframe.style.top = topPosition;
+    // These percentages represent the position and size relative to the PDF
+    const relativeWidth = 0.29;
+    const relativeHeight = 0.50;
+    const relativeLeft = 0.655;
+    const relativeTop = 0.180;
+
+    const iframeWidth = canvasRect.width * relativeWidth;
+    const iframeHeight = canvasRect.height * relativeHeight;
+    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+    avatarIframe.style.width = `${iframeWidth}px`;
+    avatarIframe.style.height = `${iframeHeight}px`;
+    avatarIframe.style.left = `${iframeLeft}px`;
+    avatarIframe.style.top = `${iframeTop}px`;
 }
 
 // Event listeners
@@ -888,9 +930,13 @@ document.addEventListener('touchend', function(e) {
 });
 
 window.addEventListener('resize', () => {
-    fitCanvasToScreen(canvas1);
-    fitCanvasToScreen(canvas2);
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    if (avatarVisible) {
+        positionAvatarIframe(activeCanvas);
+    }
 });
+
 
 // Fullscreen function
 function toggleFullScreen() {
@@ -917,10 +963,33 @@ loadPDF();
 @@@␜-Task:
 
 
-make it smoothly go to the bottom right
+ok, and how might i make the avatar speak something at a certain point. Like I want it to say, hello there, ask me anything, but I need to trigger it through the iframe
+
+I have added the postMessage functionality to the dtm app, here is a snippit:
+ const { action, text } = event.data;
+
+  if (action === 'speak') {
+    // Trigger the avatar to speak the received text
+    handleTextInput(text);
+  }
+}
+
+I want everything to stay the same as it is now, but send the talk command 5 seconds after transitioning to slide 4
 
 
-audio doesnt work after permission, have to reload
+
+
+
+
+
+
+make it so that the avatar iframe continues to show on all slides after it loads.
+
+Additionally, instead of having it slide to the bottom right after a transition attempt on slide 4, make the transition happen as normal, and have the iframe move to the bottom right when transitioning to slide 5
+
+
+
+ok, and how might i make the avatar speak something at a certain point. Like I want it to say, hello there, ask me anything, but I need to trigger it through the iframe
 
 
 
