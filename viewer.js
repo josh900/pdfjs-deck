@@ -260,7 +260,7 @@ function positionAvatarIframe() {
 
     // These percentages represent the position and size relative to the PDF
     const relativeWidth = 0.29;
-    const relativeHeight = 0.40;
+    const relativeHeight = 0.50;
     const relativeLeft = 0.655;
     const relativeTop = 0.272;
 
