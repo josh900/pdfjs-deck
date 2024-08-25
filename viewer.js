@@ -267,7 +267,7 @@ function createAvatarIframe(canvas) {
     positionAvatarIframe(canvas);
     
     // Add this line to make the iframe visible immediately
-    avatarIframe.classList.add('visible');
+    // avatarIframe.classList.add('visible');
 }
 
 // Position avatar iframe
