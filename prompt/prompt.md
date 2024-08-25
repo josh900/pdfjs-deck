@@ -917,6 +917,22 @@ loadPDF();
 @@@␜-Task:
 
 
+
+
+ok, and how might i make the avatar speak something at a certain point. Like I want it to say, hello there, ask me anything, but I need to trigger it through the iframe
+
+I have added the postMessage functionality to the dtm app, here is a snippit:
+ const { action, text } = event.data;
+
+  if (action === 'speak') {
+    // Trigger the avatar to speak the received text
+    handleTextInput(text);
+  }
+}
+
+I want everything to stay the same as it is now, but send the talk command 5 seconds after transitioning to slide 4
+
+
 make it smoothly go to the bottom right
 
 
