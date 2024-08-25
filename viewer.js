@@ -68,6 +68,11 @@ window.addEventListener('resize', () => {
     debouncedPositionAvatar();
 });
 
+function sendAvatarSpeakCommand(text) {
+    if (avatarIframe) {
+      avatarIframe.contentWindow.postMessage({ action: 'speak', text: text }, '*');
+    }
+  }
 
 // Preload pages
 function preloadPages(currentPage) {
@@ -105,44 +110,48 @@ function renderPage(num) {
     const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
     
     if (pageCache.has(num)) {
-        activeCtx.drawImage(pageCache.get(num), 0, 0);
-        transitionSlides(activeCanvas, inactiveCanvas);
+      activeCtx.drawImage(pageCache.get(num), 0, 0);
+      transitionSlides(activeCanvas, inactiveCanvas);
     } else {
-        pdfDoc.getPage(num).then(function(page) {
-            const viewport = page.getViewport({scale: scale});
-            activeCanvas.height = viewport.height;
-            activeCanvas.width = viewport.width;
-
-            const renderContext = {
-                canvasContext: activeCtx,
-                viewport: viewport
-            };
-            const renderTask = page.render(renderContext);
-
-            renderTask.promise.then(function() {
-                transitionSlides(activeCanvas, inactiveCanvas);
-            });
+      pdfDoc.getPage(num).then(function(page) {
+        const viewport = page.getViewport({scale: scale});
+        activeCanvas.height = viewport.height;
+        activeCanvas.width = viewport.width;
+  
+        const renderContext = {
+          canvasContext: activeCtx,
+          viewport: viewport
+        };
+        const renderTask = page.render(renderContext);
+  
+        renderTask.promise.then(function() {
+          transitionSlides(activeCanvas, inactiveCanvas);
         });
+      });
     }
-
+  
     // Preload avatar iframe on slide 3
     if (num === 3 && !avatarIframe) {
-        createAvatarIframe(activeCanvas);
+      createAvatarIframe(activeCanvas);
     }
-
-    // Show avatar iframe on slide 5
-    if (num === 5 && avatarIframe) {
-        avatarIframe.classList.add('visible');
-        avatarVisible = true;
-        positionAvatarIframe();
+  
+    // Show avatar iframe on slide 4 and trigger speak command after 5 seconds
+    if (num === 4 && avatarIframe) {
+      avatarIframe.classList.add('visible');
+      avatarVisible = true;
+      positionAvatarIframe();
+      
+      // Trigger speak command after 5 seconds
+      setTimeout(() => {
+        sendAvatarSpeakCommand("Hello there, ask me anything");
+      }, 5000);
     } else if (avatarIframe) {
-        // avatarIframe.classList.remove('visible');
-        // avatarVisible = false;
+      // avatarIframe.classList.remove('visible');
+      // avatarVisible = false;
     }
-    
-    
-}
+  }
 
+  
 function transitionSlides(activeCanvas, inactiveCanvas) {
     activeCanvas.style.display = 'block';
     activeCanvas.style.opacity = 0;
