@@ -216,6 +216,7 @@ function createAvatarIframe(canvas) {
     avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?avatar=fdc710f6-33ba-4514-8cd8-44fc5218fa87&header=false&interfaceMode=simplePushTalk';
     avatarIframe.style.background = 'transparent';
     avatarIframe.scrolling = 'no';
+    avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
     viewerContainer.appendChild(avatarIframe);
 
     positionAvatarIframe(canvas);
