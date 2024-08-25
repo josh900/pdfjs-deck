@@ -126,7 +126,7 @@ function renderPage(num) {
     }
 
     // Preload avatar iframe on slide 4
-    if (num === 4 && !avatarIframe) {
+    if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
@@ -260,7 +260,7 @@ function positionAvatarIframe() {
 
     // These percentages represent the position and size relative to the PDF
     const relativeWidth = 0.29;
-    const relativeHeight = 0.36;
+    const relativeHeight = 0.40;
     const relativeLeft = 0.655;
     const relativeTop = 0.272;
 
