@@ -31,14 +31,14 @@ canvas2.style.display = 'none';
 // Load the PDF
 function loadPDF() {
     loadingIndicator.classList.remove('hidden');
-    pdfjsLib.getDocument('presentation.pdf').promise.then(function(pdf) {
+    pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
         pdfDoc = pdf;
         totalSlidesSpan.textContent = pdf.numPages;
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
-    }).catch(function(error) {
+    }).catch(function (error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
     });
@@ -54,6 +54,12 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+function sendMessageToAvatar(message) {
+    if (avatarIframe) {
+        avatarIframe.contentWindow.postMessage({ action: 'speak', text: message }, '*');
+    }
 }
 
 const debouncedPositionAvatar = debounce(() => {
@@ -75,12 +81,12 @@ function preloadPages(currentPage) {
     pagesToLoad.forEach(pageNumber => {
         if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
             pdfDoc.getPage(pageNumber).then(page => {
-                const viewport = page.getViewport({scale: scale});
+                const viewport = page.getViewport({ scale: scale });
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
                 tempCanvas.height = viewport.height;
                 tempCanvas.width = viewport.width;
-                
+
                 const renderContext = {
                     canvasContext: tempCtx,
                     viewport: viewport
@@ -97,19 +103,19 @@ function preloadPages(currentPage) {
 function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
-    
+
     showSlideInfo();
-    
+
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
     const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
     const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
-    
+
     if (pageCache.has(num)) {
         activeCtx.drawImage(pageCache.get(num), 0, 0);
         transitionSlides(activeCanvas, inactiveCanvas);
     } else {
-        pdfDoc.getPage(num).then(function(page) {
-            const viewport = page.getViewport({scale: scale});
+        pdfDoc.getPage(num).then(function (page) {
+            const viewport = page.getViewport({ scale: scale });
             activeCanvas.height = viewport.height;
             activeCanvas.width = viewport.width;
 
@@ -119,7 +125,7 @@ function renderPage(num) {
             };
             const renderTask = page.render(renderContext);
 
-            renderTask.promise.then(function() {
+            renderTask.promise.then(function () {
                 transitionSlides(activeCanvas, inactiveCanvas);
             });
         });
@@ -128,6 +134,15 @@ function renderPage(num) {
     // Preload avatar iframe on slide 3
     if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
+    }
+
+    // Preload avatar iframe on slide 4
+    if (num === 5 && avatarIframe) {
+
+        // Add this new code
+        setTimeout(() => {
+            sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about Skoop, <prosody rate=\"90%\">I'll try my best to answer correctly.</prosody> </speak>");
+        }, 5000);
     }
 
     // Show avatar iframe on slide 5
@@ -139,8 +154,8 @@ function renderPage(num) {
         // avatarIframe.classList.remove('visible');
         // avatarVisible = false;
     }
-    
-    
+
+
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -250,6 +265,9 @@ function createAvatarIframe(canvas) {
     viewerContainer.appendChild(avatarIframe);
 
     positionAvatarIframe(canvas);
+    
+    // Add this line to make the iframe visible immediately
+    // avatarIframe.classList.add('visible');
 }
 
 // Position avatar iframe
@@ -278,8 +296,8 @@ function positionAvatarIframe() {
 }
 
 // Event listeners
-document.addEventListener('keydown', function(e) {
-    switch(e.key) {
+document.addEventListener('keydown', function (e) {
+    switch (e.key) {
         case 'ArrowLeft':
         case 'ArrowUp':
             onPrevPage();
@@ -295,11 +313,11 @@ document.addEventListener('keydown', function(e) {
 document.addEventListener('click', onNextPage);
 
 let touchStartX = 0;
-document.addEventListener('touchstart', function(e) {
+document.addEventListener('touchstart', function (e) {
     touchStartX = e.changedTouches[0].screenX;
 });
 
-document.addEventListener('touchend', function(e) {
+document.addEventListener('touchend', function (e) {
     const touchEndX = e.changedTouches[0].screenX;
     if (touchEndX < touchStartX - 50) onNextPage();
     if (touchEndX > touchStartX + 50) onPrevPage();
@@ -326,7 +344,7 @@ function toggleFullScreen() {
 }
 
 // Add fullscreen event listener
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'f') {
         toggleFullScreen();
     }
