@@ -209,7 +209,7 @@ function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
     avatarIframe = document.createElement('iframe');
     avatarIframe.id = 'avatarIframe';
-    avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk';
+    avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?header=false&interfaceMode=simplePushTalk';
     avatarIframe.style.background = 'transparent';
     avatarIframe.scrolling = 'no';
     viewerContainer.appendChild(avatarIframe);
