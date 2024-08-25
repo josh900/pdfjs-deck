@@ -262,7 +262,7 @@ function positionAvatarIframe() {
     const relativeWidth = 0.29;
     const relativeHeight = 0.50;
     const relativeLeft = 0.655;
-    const relativeTop = 0.222;
+    const relativeTop = 0.180;
 
     const iframeWidth = canvasRect.width * relativeWidth;
     const iframeHeight = canvasRect.height * relativeHeight;
