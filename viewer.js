@@ -197,8 +197,8 @@ function onNextPage() {
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
-    // pageNum++;
-    // queueRenderPage(pageNum);
+    pageNum++;
+    queueRenderPage(pageNum);
 }
 
 // Fit canvas to screen
