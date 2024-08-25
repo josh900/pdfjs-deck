@@ -68,6 +68,7 @@ window.addEventListener('resize', () => {
     debouncedPositionAvatar();
 });
 
+
 // Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
@@ -124,24 +125,22 @@ function renderPage(num) {
         });
     }
 
-    // Create avatar iframe if it doesn't exist
-    if (!avatarIframe) {
+    // Preload avatar iframe on slide 4
+    if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
-    // Show avatar iframe on all slides after it's created
-    if (avatarIframe) {
+    // Show avatar iframe on slide 5
+    if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
         positionAvatarIframe();
+    } else if (avatarIframe) {
+        avatarIframe.classList.remove('visible');
+        avatarVisible = false;
     }
     
-    // Move avatar to bottom right on slide 5 and beyond
-    if (num >= 5 && avatarIframe) {
-        avatarIframe.classList.add('bottom-right');
-    } else if (avatarIframe) {
-        avatarIframe.classList.remove('bottom-right');
-    }
+    
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -189,6 +188,10 @@ function onPrevPage() {
 
 // Go to next page
 function onNextPage() {
+    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+        avatarIframe.classList.add('bottom-right');
+        return;
+    }
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
@@ -255,49 +258,21 @@ function positionAvatarIframe() {
     const canvasRect = activeCanvas.getBoundingClientRect();
     const containerRect = viewerContainer.getBoundingClientRect();
 
-    if (avatarIframe.classList.contains('bottom-right')) {
-        // Position for bottom-right (slide 5 and beyond)
-        const iframeWidth = containerRect.width * 0.2;
-        const iframeHeight = containerRect.height * 0.24;
-        const iframeRight = 20;
-        const iframeBottom = 20;
+    // These percentages represent the position and size relative to the PDF
+    const relativeWidth = 0.29;
+    const relativeHeight = 0.50;
+    const relativeLeft = 0.655;
+    const relativeTop = 0.180;
 
-        avatarIframe.style.width = `${iframeWidth}px`;
-        avatarIframe.style.height = `${iframeHeight}px`;
-        avatarIframe.style.right = `${iframeRight}px`;
-        avatarIframe.style.bottom = `${iframeBottom}px`;
-        avatarIframe.style.left = 'auto';
-        avatarIframe.style.top = 'auto';
-    } else {
-        // Position for slides before 5
-        const relativeWidth = 0.29;
-        const relativeHeight = 0.50;
-        const relativeLeft = 0.655;
-        const relativeTop = 0.180;
+    const iframeWidth = canvasRect.width * relativeWidth;
+    const iframeHeight = canvasRect.height * relativeHeight;
+    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
 
-        const iframeWidth = canvasRect.width * relativeWidth;
-        const iframeHeight = canvasRect.height * relativeHeight;
-        const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
-        const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
-
-        avatarIframe.style.width = `${iframeWidth}px`;
-        avatarIframe.style.height = `${iframeHeight}px`;
-        avatarIframe.style.left = `${iframeLeft}px`;
-        avatarIframe.style.top = `${iframeTop}px`;
-        avatarIframe.style.right = 'auto';
-        avatarIframe.style.bottom = 'auto';
-    }
-}
-
-// Fullscreen function
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
+    avatarIframe.style.width = `${iframeWidth}px`;
+    avatarIframe.style.height = `${iframeHeight}px`;
+    avatarIframe.style.left = `${iframeLeft}px`;
+    avatarIframe.style.top = `${iframeTop}px`;
 }
 
 // Event listeners
@@ -311,9 +286,6 @@ document.addEventListener('keydown', function(e) {
         case 'ArrowDown':
         case ' ':
             onNextPage();
-            break;
-        case 'f':
-            toggleFullScreen();
             break;
     }
 });
@@ -329,6 +301,33 @@ document.addEventListener('touchend', function(e) {
     const touchEndX = e.changedTouches[0].screenX;
     if (touchEndX < touchStartX - 50) onNextPage();
     if (touchEndX > touchStartX + 50) onPrevPage();
+});
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    if (avatarVisible) {
+        positionAvatarIframe(activeCanvas);
+    }
+});
+
+
+// Fullscreen function
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Add fullscreen event listener
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'f') {
+        toggleFullScreen();
+    }
 });
 
 // Initialize
