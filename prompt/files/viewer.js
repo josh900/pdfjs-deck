@@ -14,6 +14,8 @@ const canvas2 = document.createElement('canvas');
 const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 const pageCache = new Map();
+let avatarIframe = null;
+let avatarVisible = false;
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -97,6 +99,20 @@ function renderPage(num) {
             });
         });
     }
+
+    // Preload avatar iframe on slide 4
+    if (num === 4 && !avatarIframe) {
+        createAvatarIframe(activeCanvas);
+    }
+
+    // Show avatar iframe on slide 5
+    if (num === 5 && avatarIframe) {
+        avatarIframe.classList.add('visible');
+        avatarVisible = true;
+    } else if (avatarIframe) {
+        avatarIframe.classList.remove('visible');
+        avatarVisible = false;
+    }
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -144,6 +160,10 @@ function onPrevPage() {
 
 // Go to next page
 function onNextPage() {
+    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+        avatarIframe.classList.add('bottom-right');
+        return;
+    }
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
@@ -173,6 +193,10 @@ function fitCanvasToScreen(canvas) {
     canvas.style.position = 'absolute';
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
+
+    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+        positionAvatarIframe(canvas);
+    }
 }
 
 // Show slide info and hide after 3 seconds
@@ -182,6 +206,35 @@ function showSlideInfo() {
     slideInfo.hideTimeout = setTimeout(() => {
         slideInfo.classList.add('hidden');
     }, 3000);
+}
+
+// Create and position avatar iframe
+function createAvatarIframe(canvas) {
+    console.log("Creating avatar iframe");
+    avatarIframe = document.createElement('iframe');
+    avatarIframe.id = 'avatarIframe';
+    avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?avatar=fdc710f6-33ba-4514-8cd8-44fc5218fa87&header=false&interfaceMode=simplePushTalk';
+    avatarIframe.style.background = 'transparent';
+    avatarIframe.scrolling = 'no';
+    avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+    viewerContainer.appendChild(avatarIframe);
+
+    positionAvatarIframe(canvas);
+}
+
+// Position avatar iframe
+function positionAvatarIframe(canvas) {
+    if (!avatarIframe) return;
+
+    const iframeWidth = '29%'; // 20% of the parent container width
+    const iframeHeight = '36%'; // To maintain a square shape
+    const leftPosition = '65.5%';
+    const topPosition = '27.2%';
+
+    avatarIframe.style.width = iframeWidth;
+    avatarIframe.style.height = iframeHeight;
+    avatarIframe.style.left = leftPosition;
+    avatarIframe.style.top = topPosition;
 }
 
 // Event listeners

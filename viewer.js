@@ -109,6 +109,7 @@ function renderPage(num) {
     if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
+        positionAvatarIframe(activeCanvas);
     } else if (avatarIframe) {
         avatarIframe.classList.remove('visible');
         avatarVisible = false;
@@ -194,7 +195,7 @@ function fitCanvasToScreen(canvas) {
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 
-    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+    if (avatarIframe && avatarVisible) {
         positionAvatarIframe(canvas);
     }
 }
@@ -226,15 +227,24 @@ function createAvatarIframe(canvas) {
 function positionAvatarIframe(canvas) {
     if (!avatarIframe) return;
 
-    const iframeWidth = '29%'; // 20% of the parent container width
-    const iframeHeight = '36%'; // To maintain a square shape
-    const leftPosition = '65.5%';
-    const topPosition = '27.2%';
+    const canvasRect = canvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
 
-    avatarIframe.style.width = iframeWidth;
-    avatarIframe.style.height = iframeHeight;
-    avatarIframe.style.left = leftPosition;
-    avatarIframe.style.top = topPosition;
+    // These percentages represent the position and size relative to the PDF
+    const relativeWidth = 0.29;
+    const relativeHeight = 0.36;
+    const relativeLeft = 0.655;
+    const relativeTop = 0.272;
+
+    const iframeWidth = canvasRect.width * relativeWidth;
+    const iframeHeight = canvasRect.height * relativeHeight;
+    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+    avatarIframe.style.width = `${iframeWidth}px`;
+    avatarIframe.style.height = `${iframeHeight}px`;
+    avatarIframe.style.left = `${iframeLeft}px`;
+    avatarIframe.style.top = `${iframeTop}px`;
 }
 
 // Event listeners
