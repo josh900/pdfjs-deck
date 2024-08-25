@@ -917,6 +917,11 @@ loadPDF();
 @@@␜-Task:
 
 
+Ok, additionally, there is a very thin blank line around the avatar edges. 
+
+I think maybe because of multiple things stacked. can you get rid of it?
+
+
 
 
 ok, and how might i make the avatar speak something at a certain point. Like I want it to say, hello there, ask me anything, but I need to trigger it through the iframe

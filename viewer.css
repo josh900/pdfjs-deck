@@ -95,4 +95,5 @@ canvas {
     bottom: 20px !important;
     top: auto !important;
     left: auto !important;
+    min-height: 215px;
 }
