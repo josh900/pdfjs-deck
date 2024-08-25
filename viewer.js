@@ -141,7 +141,7 @@ function renderPage(num) {
 
         // Add this new code
         setTimeout(() => {
-            sendMessageToAvatar("Hello there, ask me anything");
+            sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about Skoop, <prosody rate=\"90%\">I'll try my best to answer correctly.</prosody> </speak>");
         }, 5000);
     }
 
