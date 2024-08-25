@@ -137,7 +137,7 @@ function renderPage(num) {
     }
 
     // Preload avatar iframe on slide 4
-    if (num === 4 && avatarIframe) {
+    if (num === 5 && avatarIframe) {
 
         // Add this new code
         setTimeout(() => {
