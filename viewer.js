@@ -100,27 +100,25 @@ function renderPage(num) {
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
-    activeCanvas.style.opacity = 0;
     activeCanvas.style.display = 'block';
-    inactiveCanvas.style.opacity = 1;
+    activeCanvas.style.opacity = 0;
 
-    let opacity = 0;
-    const fadeIn = setInterval(() => {
-        opacity += 0.1;
-        activeCanvas.style.opacity = opacity;
-        inactiveCanvas.style.opacity = 1 - opacity;
+    // Force a reflow to ensure the initial opacity is applied
+    void activeCanvas.offsetWidth;
 
-        if (opacity >= 1) {
-            clearInterval(fadeIn);
-            inactiveCanvas.style.display = 'none';
-            pageRendering = false;
-            if (pageNumPending !== null) {
-                renderPage(pageNumPending);
-                pageNumPending = null;
-            }
-            preloadPages(pageNum + 1);
+    activeCanvas.style.opacity = 1;
+    inactiveCanvas.style.opacity = 0;
+
+    // Wait for the transition to complete
+    setTimeout(() => {
+        inactiveCanvas.style.display = 'none';
+        pageRendering = false;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
         }
-    }, 50); // Adjust this value to change the transition speed (lower = faster)
+        preloadPages(pageNum + 1);
+    }, 400); // This should match the transition duration in the CSS
 
     fitCanvasToScreen(activeCanvas);
     fitCanvasToScreen(inactiveCanvas);
