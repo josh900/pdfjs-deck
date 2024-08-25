@@ -17,6 +17,7 @@ const pageCache = new Map();
 let avatarIframe = null;
 let avatarVisible = false;
 
+
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
