@@ -917,6 +917,21 @@ loadPDF();
 @@@␜-Task:
 
 
+make it smoothly go to the bottom right
+
+
+audio doesnt work after permission, have to reload
+
+
+
+
+
+
+
+
+
+
+
 This is working pretty well, but the avatar that shows on slide 5 doesnt move perfectly with the pdf presentation. It's ok if the window is large, but as it gets smaller it drifts away from the specified location. We need it to be positioned reletive to the pdf presentation so that it appears to be part of the pdf.
 
 

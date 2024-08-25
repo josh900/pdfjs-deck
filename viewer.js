@@ -44,6 +44,31 @@ function loadPDF() {
     });
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const debouncedPositionAvatar = debounce(() => {
+    if (avatarVisible) {
+        positionAvatarIframe();
+    }
+}, 100);
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    debouncedPositionAvatar();
+});
+
+
 // Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
@@ -109,11 +134,13 @@ function renderPage(num) {
     if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
-        positionAvatarIframe(activeCanvas);
+        positionAvatarIframe();
     } else if (avatarIframe) {
         avatarIframe.classList.remove('visible');
         avatarVisible = false;
     }
+    
+    
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -195,8 +222,8 @@ function fitCanvasToScreen(canvas) {
     canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 
-    if (avatarIframe && avatarVisible) {
-        positionAvatarIframe(canvas);
+    if (avatarVisible) {
+        positionAvatarIframe();
     }
 }
 
@@ -224,10 +251,11 @@ function createAvatarIframe(canvas) {
 }
 
 // Position avatar iframe
-function positionAvatarIframe(canvas) {
-    if (!avatarIframe) return;
+function positionAvatarIframe() {
+    if (!avatarIframe || !avatarVisible) return;
 
-    const canvasRect = canvas.getBoundingClientRect();
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
     const containerRect = viewerContainer.getBoundingClientRect();
 
     // These percentages represent the position and size relative to the PDF
@@ -276,9 +304,13 @@ document.addEventListener('touchend', function(e) {
 });
 
 window.addEventListener('resize', () => {
-    fitCanvasToScreen(canvas1);
-    fitCanvasToScreen(canvas2);
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    if (avatarVisible) {
+        positionAvatarIframe(activeCanvas);
+    }
 });
+
 
 // Fullscreen function
 function toggleFullScreen() {
