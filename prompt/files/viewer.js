@@ -3,6 +3,7 @@ import * as pdfjsLib from './build/pdf.mjs';
 // Initialize PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
 
+
 // Variables
 let pdfDoc = null;
 let pageNum = 1;
@@ -11,7 +12,6 @@ let pageNumPending = null;
 let scale = 1;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
-const pageCache = new Map();
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -31,34 +31,9 @@ function loadPDF() {
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
-        preloadPages(pageNum);
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
-    });
-}
-
-// Preload pages
-function preloadPages(currentPage) {
-    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
-    pagesToLoad.forEach(pageNumber => {
-        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
-            pdfDoc.getPage(pageNumber).then(page => {
-                const viewport = page.getViewport({scale: scale});
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.height = viewport.height;
-                tempCanvas.width = viewport.width;
-                
-                const renderContext = {
-                    canvasContext: tempCtx,
-                    viewport: viewport
-                };
-                page.render(renderContext).promise.then(() => {
-                    pageCache.set(pageNumber, tempCanvas);
-                });
-            });
-        }
     });
 }
 
@@ -69,43 +44,28 @@ function renderPage(num) {
     
     canvas.classList.add('fade-out');
     
-    showSlideInfo();
-    
     setTimeout(() => {
-        if (pageCache.has(num)) {
-            ctx.drawImage(pageCache.get(num), 0, 0);
-            pageRendering = false;
-            if (pageNumPending !== null) {
-                renderPage(pageNumPending);
-                pageNumPending = null;
-            }
-            fitCanvasToScreen();
-            canvas.classList.remove('fade-out');
-            preloadPages(num + 1);
-        } else {
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({scale: scale});
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
 
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-                const renderTask = page.render(renderContext);
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            const renderTask = page.render(renderContext);
 
-                renderTask.promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                    fitCanvasToScreen();
-                    canvas.classList.remove('fade-out');
-                    preloadPages(num + 1);
-                });
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+                fitCanvasToScreen();
+                canvas.classList.remove('fade-out');
             });
-        }
+        });
     }, 300); // Match this to the transition duration in CSS
 }
 
@@ -136,6 +96,9 @@ function onNextPage() {
     queueRenderPage(pageNum);
 }
 
+
+
+
 // Fit canvas to screen
 function fitCanvasToScreen() {
     const containerWidth = viewerContainer.clientWidth;
@@ -160,14 +123,7 @@ function fitCanvasToScreen() {
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 }
 
-// Show slide info and hide after 3 seconds
-function showSlideInfo() {
-    slideInfo.classList.remove('hidden');
-    clearTimeout(slideInfo.hideTimeout);
-    slideInfo.hideTimeout = setTimeout(() => {
-        slideInfo.classList.add('hidden');
-    }, 3000);
-}
+
 
 // Event listeners
 document.addEventListener('keydown', function(e) {
@@ -199,6 +155,7 @@ document.addEventListener('touchend', function(e) {
 
 window.addEventListener('resize', fitCanvasToScreen);
 
+
 // Fullscreen function
 function toggleFullScreen() {
     if (!document.fullscreenElement) {
@@ -217,5 +174,8 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+
 // Initialize
 loadPDF();
+
+

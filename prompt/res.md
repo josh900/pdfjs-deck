@@ -1,7 +1,92 @@
+The following text is a Git repository with code. The structure of the text are sections that begin with ----, followed by a single line containing the file path and file name, followed by a variable amount of lines containing the file contents. The text representing the Git repository ends when the symbols --END-- are encounted. Any further text beyond --END-- are meant to be interpreted as instructions using the aforementioned Git repository as context.
+----
+index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Presentation Viewer</title>
+    <link rel="stylesheet" href="viewer.css">
+    <script src="build/pdf.mjs" type="module"></script>
+</head>
+<body>
+    <div id="viewerContainer">
+        <div id="viewer" class="pdfViewer"></div>
+    </div>
+    <div id="loadingIndicator" class="hidden">Loading...</div>
+    <div id="slideInfo" class="hidden">Slide <span id="currentSlide"></span> of <span id="totalSlides"></span></div>
+    <script src="viewer.js" type="module"></script>
+</body>
+</html>
+----
+viewer.css
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: black;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+#viewerContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+#loadingIndicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+}
+
+#slideInfo {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    font-size: 16px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+.hidden {
+    display: none;
+}
+
+
+canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: opacity 0.3s ease-in-out;
+}
+
+canvas.fade-out {
+    opacity: 0;
+}
+----
+viewer.js
 import * as pdfjsLib from './build/pdf.mjs';
 
 // Initialize PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+
 
 // Variables
 let pdfDoc = null;
@@ -11,7 +96,6 @@ let pageNumPending = null;
 let scale = 1;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
-const pageCache = new Map();
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -31,34 +115,9 @@ function loadPDF() {
         loadingIndicator.classList.add('hidden');
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
-        preloadPages(pageNum);
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
-    });
-}
-
-// Preload pages
-function preloadPages(currentPage) {
-    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
-    pagesToLoad.forEach(pageNumber => {
-        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
-            pdfDoc.getPage(pageNumber).then(page => {
-                const viewport = page.getViewport({scale: scale});
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.height = viewport.height;
-                tempCanvas.width = viewport.width;
-                
-                const renderContext = {
-                    canvasContext: tempCtx,
-                    viewport: viewport
-                };
-                page.render(renderContext).promise.then(() => {
-                    pageCache.set(pageNumber, tempCanvas);
-                });
-            });
-        }
     });
 }
 
@@ -69,43 +128,28 @@ function renderPage(num) {
     
     canvas.classList.add('fade-out');
     
-    showSlideInfo();
-    
     setTimeout(() => {
-        if (pageCache.has(num)) {
-            ctx.drawImage(pageCache.get(num), 0, 0);
-            pageRendering = false;
-            if (pageNumPending !== null) {
-                renderPage(pageNumPending);
-                pageNumPending = null;
-            }
-            fitCanvasToScreen();
-            canvas.classList.remove('fade-out');
-            preloadPages(num + 1);
-        } else {
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({scale: scale});
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
 
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-                const renderTask = page.render(renderContext);
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            const renderTask = page.render(renderContext);
 
-                renderTask.promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                    fitCanvasToScreen();
-                    canvas.classList.remove('fade-out');
-                    preloadPages(num + 1);
-                });
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+                fitCanvasToScreen();
+                canvas.classList.remove('fade-out');
             });
-        }
+        });
     }, 300); // Match this to the transition duration in CSS
 }
 
@@ -136,6 +180,9 @@ function onNextPage() {
     queueRenderPage(pageNum);
 }
 
+
+
+
 // Fit canvas to screen
 function fitCanvasToScreen() {
     const containerWidth = viewerContainer.clientWidth;
@@ -160,14 +207,7 @@ function fitCanvasToScreen() {
     canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
 }
 
-// Show slide info and hide after 3 seconds
-function showSlideInfo() {
-    slideInfo.classList.remove('hidden');
-    clearTimeout(slideInfo.hideTimeout);
-    slideInfo.hideTimeout = setTimeout(() => {
-        slideInfo.classList.add('hidden');
-    }, 3000);
-}
+
 
 // Event listeners
 document.addEventListener('keydown', function(e) {
@@ -199,6 +239,7 @@ document.addEventListener('touchend', function(e) {
 
 window.addEventListener('resize', fitCanvasToScreen);
 
+
 // Fullscreen function
 function toggleFullScreen() {
     if (!document.fullscreenElement) {
@@ -217,5 +258,10 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+
 // Initialize
 loadPDF();
+
+
+
+--END--

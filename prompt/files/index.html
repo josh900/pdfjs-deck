@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Presentation Viewer</title>
+    <link rel="stylesheet" href="viewer.css">
+    <script src="build/pdf.mjs" type="module"></script>
+</head>
+<body>
+    <div id="viewerContainer">
+        <div id="viewer" class="pdfViewer"></div>
+    </div>
+    <div id="loadingIndicator" class="hidden">Loading...</div>
+    <div id="slideInfo" class="hidden">Slide <span id="currentSlide"></span> of <span id="totalSlides"></span></div>
+    <script src="viewer.js" type="module"></script>
+</body>
+</html>
