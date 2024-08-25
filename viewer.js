@@ -141,7 +141,7 @@ function renderPage(num) {
 
         // Add this new code
         setTimeout(() => {
-            sendMessageToAvatar("<speak> Hello there, <break strength="medium"/> feel free to ask me anything about <phoneme alphabet="ipa" ph="skuːp">Skoop</phoneme><break strength="medium"/>, I'll try my best to answer correctly. </speak>");
+            sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about <phoneme alphabet=\"ipa\" ph=\"skuːp\">Skoop</phoneme><break strength=\"medium\"/>, I'll try my best to answer correctly. </speak>");
         }, 5000);
     }
 
