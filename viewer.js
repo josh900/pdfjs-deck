@@ -9,8 +9,10 @@ let pageNum = 1;
 let pageRendering = false;
 let pageNumPending = null;
 let scale = 1;
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
+const canvas1 = document.createElement('canvas');
+const canvas2 = document.createElement('canvas');
+const ctx1 = canvas1.getContext('2d');
+const ctx2 = canvas2.getContext('2d');
 const pageCache = new Map();
 
 // DOM elements
@@ -20,7 +22,9 @@ const slideInfo = document.getElementById('slideInfo');
 const currentSlideSpan = document.getElementById('currentSlide');
 const totalSlidesSpan = document.getElementById('totalSlides');
 
-viewerContainer.appendChild(canvas);
+viewerContainer.appendChild(canvas1);
+viewerContainer.appendChild(canvas2);
+canvas2.style.display = 'none';
 
 // Load the PDF
 function loadPDF() {
@@ -67,46 +71,59 @@ function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
     
-    canvas.classList.add('fade-out');
-    
     showSlideInfo();
     
-    setTimeout(() => {
-        if (pageCache.has(num)) {
-            ctx.drawImage(pageCache.get(num), 0, 0);
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
+    const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
+    
+    if (pageCache.has(num)) {
+        activeCtx.drawImage(pageCache.get(num), 0, 0);
+        transitionSlides(activeCanvas, inactiveCanvas);
+    } else {
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            activeCanvas.height = viewport.height;
+            activeCanvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: activeCtx,
+                viewport: viewport
+            };
+            const renderTask = page.render(renderContext);
+
+            renderTask.promise.then(function() {
+                transitionSlides(activeCanvas, inactiveCanvas);
+            });
+        });
+    }
+}
+
+function transitionSlides(activeCanvas, inactiveCanvas) {
+    activeCanvas.style.opacity = 0;
+    activeCanvas.style.display = 'block';
+    inactiveCanvas.style.opacity = 1;
+
+    let opacity = 0;
+    const fadeIn = setInterval(() => {
+        opacity += 0.1;
+        activeCanvas.style.opacity = opacity;
+        inactiveCanvas.style.opacity = 1 - opacity;
+
+        if (opacity >= 1) {
+            clearInterval(fadeIn);
+            inactiveCanvas.style.display = 'none';
             pageRendering = false;
             if (pageNumPending !== null) {
                 renderPage(pageNumPending);
                 pageNumPending = null;
             }
-            fitCanvasToScreen();
-            canvas.classList.remove('fade-out');
-            preloadPages(num + 1);
-        } else {
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({scale: scale});
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-                const renderTask = page.render(renderContext);
-
-                renderTask.promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                    fitCanvasToScreen();
-                    canvas.classList.remove('fade-out');
-                    preloadPages(num + 1);
-                });
-            });
+            preloadPages(pageNum + 1);
         }
-    }, 300); // Match this to the transition duration in CSS
+    }, 50); // Adjust this value to change the transition speed (lower = faster)
+
+    fitCanvasToScreen(activeCanvas);
+    fitCanvasToScreen(inactiveCanvas);
 }
 
 // Queue rendering of a page
@@ -137,7 +154,7 @@ function onNextPage() {
 }
 
 // Fit canvas to screen
-function fitCanvasToScreen() {
+function fitCanvasToScreen(canvas) {
     const containerWidth = viewerContainer.clientWidth;
     const containerHeight = viewerContainer.clientHeight;
     const canvasAspect = canvas.width / canvas.height;
@@ -197,7 +214,10 @@ document.addEventListener('touchend', function(e) {
     if (touchEndX > touchStartX + 50) onPrevPage();
 });
 
-window.addEventListener('resize', fitCanvasToScreen);
+window.addEventListener('resize', () => {
+    fitCanvasToScreen(canvas1);
+    fitCanvasToScreen(canvas2);
+});
 
 // Fullscreen function
 function toggleFullScreen() {
