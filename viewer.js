@@ -192,12 +192,12 @@ function renderPage(num) {
         });
     }
 
-    // Preload avatar iframe on slide 3
+    // Preload avatar iframe or video on slide 3
     if (num === 3 && !avatarIframe) {
         createAvatarIframe(activeCanvas);
     }
 
-    // Show avatar iframe on slide 5
+    // Show avatar iframe or video on slide 5
     if (num === 5 && avatarIframe) {
         avatarIframe.classList.add('visible');
         avatarVisible = true;
@@ -208,13 +208,16 @@ function renderPage(num) {
                 sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about <phoneme alphabet=\"ipa\" ph=\"skuːp\">Skoop</phoneme><break strength=\"medium\"/>, I'll try my best to answer correctly. </speak>");
             }, 5000);
         }
-    } else if (avatarIframe && !minimalbot) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
-        avatarIframe.classList.add('bottom-right');
-    } else if (avatarIframe && minimalbot) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
+    } else if (avatarIframe) {
+        if (!minimalbot && pushtalk) {
+            avatarIframe.classList.remove('visible');
+            avatarVisible = false;
+            avatarIframe.classList.add('bottom-right');
+        } else {
+            avatarIframe.classList.remove('visible');
+            avatarVisible = false;
+            avatarIframe.classList.remove('bottom-right');
+        }
     }
 }
 
@@ -315,7 +318,7 @@ function showSlideInfo() {
 
 // Create and position avatar iframe
 function createAvatarIframe(canvas) {
-    console.log("Creating avatar iframe");
+    console.log("Creating avatar iframe or video");
     if (pushtalk) {
         avatarIframe = document.createElement('iframe');
         avatarIframe.id = 'avatarIframe';
@@ -336,6 +339,7 @@ function createAvatarIframe(canvas) {
     positionAvatarIframe(canvas);
 }
 
+
 // Position avatar iframe
 function positionAvatarIframe() {
     if (!avatarIframe || !avatarVisible) return;
@@ -344,22 +348,38 @@ function positionAvatarIframe() {
     const canvasRect = activeCanvas.getBoundingClientRect();
     const containerRect = viewerContainer.getBoundingClientRect();
 
-    // These percentages represent the position and size relative to the PDF
-    const relativeWidth = 0.29;
-    const relativeHeight = 0.50;
-    const relativeLeft = 0.655;
-    const relativeTop = 0.180;
+    if (!pushtalk || (pushtalk && !avatarIframe.classList.contains('bottom-right'))) {
+        // Position in the original location for video or iframe when not in bottom-right
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
 
-    const iframeWidth = canvasRect.width * relativeWidth;
-    const iframeHeight = canvasRect.height * relativeHeight;
-    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
-    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+        const iframeWidth = canvasRect.width * relativeWidth;
+        const iframeHeight = canvasRect.height * relativeHeight;
+        const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
 
-    avatarIframe.style.width = `${iframeWidth}px`;
-    avatarIframe.style.height = `${iframeHeight}px`;
-    avatarIframe.style.left = `${iframeLeft}px`;
-    avatarIframe.style.top = `${iframeTop}px`;
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.left = `${iframeLeft}px`;
+        avatarIframe.style.top = `${iframeTop}px`;
+    } else {
+        // Position in bottom-right for iframe when in bottom-right mode
+        const width = '20%';
+        const height = '24%';
+        const right = '20px';
+        const bottom = '20px';
+
+        avatarIframe.style.width = width;
+        avatarIframe.style.height = height;
+        avatarIframe.style.right = right;
+        avatarIframe.style.bottom = bottom;
+        avatarIframe.style.left = 'auto';
+        avatarIframe.style.top = 'auto';
+    }
 }
+
 
 // Event listeners
 document.addEventListener('keydown', function (e) {

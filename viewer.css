@@ -104,8 +104,6 @@ canvas {
     position: absolute;
     border: none;
     transition: opacity 0.3s ease-in-out;
-    opacity: 0;
-    pointer-events: none;
 }
 
 #avatarIframe.visible,
