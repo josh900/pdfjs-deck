@@ -32,20 +32,32 @@ viewerContainer.appendChild(canvas1);
 viewerContainer.appendChild(canvas2);
 canvas2.style.display = 'none';
 
-// Parse URL parameters
-function getUrlParameter(name) {
+function getUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
-    let value = urlParams.get(name);
-    if (value === null) {
-        // Try decoding base64
-        const encodedName = encode(name);
-        value = urlParams.get(encodedName);
-        if (value !== null) {
-            value = decode(value);
+    const params = {};
+
+    for (const [key, value] of urlParams.entries()) {
+        try {
+            // Try to decode as base64
+            const decodedKey = decode(key);
+            if (decodedKey.includes('=')) {
+                const [dKey, dValue] = decodedKey.split('=');
+                params[dKey] = dValue;
+            } else {
+                // If it's not a valid base64 encoded parameter, use it as is
+                params[key] = value;
+            }
+        } catch (e) {
+            // If decoding fails, use the parameter as is
+            params[key] = value;
         }
     }
-    return value;
+
+    return params;
 }
+
+// Use the new function to get all parameters
+const urlParams = getUrlParameters();
 
 const pushTalk = getUrlParameter('pushtalk') === 'true';
 const minimalBot = getUrlParameter('minimalbot') !== 'false';
