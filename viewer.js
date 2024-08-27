@@ -95,8 +95,16 @@ function submitEmail(email) {
     })
     .then(response => response.json())
     .then(data => {
+        // Existing code to remove email form and load PDF
         document.getElementById('emailFormContainer').remove();
         loadPDF();
+
+        // Associate email with PostHog user
+        if (typeof posthog !== 'undefined') {
+            posthog.identify(email);
+            posthog.people.set({ email: email });
+            posthog.capture('Email Submitted', { email: email });
+        }
     })
     .catch((error) => {
         console.error('Error:', error);
