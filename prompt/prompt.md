@@ -498,31 +498,548 @@ Example: <https://mozilla.github.io/pdf.js/web/viewer.html?file=compressed.trac
 
 @@@␜-Repo
 
-The following text is a Git repository with code. The structure of the text are sections that begin with ----, followed by a single line containing the file path and file name, followed by a variable amount of lines containing the file contents. The text representing the Git repository ends when the symbols --END-- are encounted. Any further text beyond --END-- are meant to be interpreted as instructions using the aforementioned Git repository as context.
-----
-index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skoop Deck</title>
-    <link rel="stylesheet" href="viewer.css">
-    <script src="build/pdf.mjs" type="module"></script>
-    <link rel="icon" type="image/png" sizes="192x192"
-    href="https://cdn.prod.website-files.com/6316d11d553f411d6f1fa732/6343f55adbb1a12a532f2769_skoop-favicon.png" />
-</head>
-<body>
-    <div id="viewerContainer">
-        <div id="viewer" class="pdfViewer"></div>
-    </div>
-    <div id="loadingIndicator" class="hidden">Loading...</div>
-    <div id="slideInfo" class="hidden">Slide <span id="currentSlide"></span> of <span id="totalSlides"></span></div>
-    <script src="viewer.js" type="module"></script>
-</body>
-</html>
-----
-viewer.css
+vieewer.js:
+import * as pdfjsLib from './build/pdf.mjs';
+import { encode, decode } from './base64.js';
+
+// Initialize PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+
+// Variables
+let pdfDoc = null;
+let pageNum = 1;
+let pageRendering = false;
+let pageNumPending = null;
+let scale = 1;
+const canvas1 = document.createElement('canvas');
+const canvas2 = document.createElement('canvas');
+const ctx1 = canvas1.getContext('2d');
+const ctx2 = canvas2.getContext('2d');
+const pageCache = new Map();
+let avatarIframe = null;
+let avatarVisible = false;
+let videoElement = null;
+
+
+
+// DOM elements
+const viewerContainer = document.getElementById('viewerContainer');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const slideInfo = document.getElementById('slideInfo');
+const currentSlideSpan = document.getElementById('currentSlide');
+const totalSlidesSpan = document.getElementById('totalSlides');
+
+viewerContainer.appendChild(canvas1);
+viewerContainer.appendChild(canvas2);
+canvas2.style.display = 'none';
+
+function getUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const params = {};
+
+    for (const [key, value] of urlParams.entries()) {
+        try {
+            // Try to decode as base64
+            const decodedKey = decode(key);
+            if (decodedKey.includes('=')) {
+                const [dKey, dValue] = decodedKey.split('=');
+                params[dKey] = dValue;
+            } else {
+                // If it's not a valid base64 encoded parameter, use it as is
+                params[key] = value;
+            }
+        } catch (e) {
+            // If decoding fails, use the parameter as is
+            params[key] = value;
+        }
+    }
+
+    return params;
+}
+
+// Use the new function to get all parameters
+const urlParams = getUrlParameters();
+
+const pushTalk = urlParams['pushtalk'] === 'true';
+const minimalBot = urlParams['minimalbot'] !== 'false';
+const introSpeech = urlParams['introspeech'] === 'true';
+const getEmail = urlParams['getemail'] !== 'false';
+
+
+// Email submission form
+function showEmailForm() {
+    const formHtml = `
+        <div id="emailFormContainer" class="email-form-container">
+            <form id="emailForm" class="email-form">
+                <h2>Please enter your email to access the presentation</h2>
+                <input type="email" id="emailInput" required placeholder="Your email">
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('afterbegin', formHtml);
+
+    document.getElementById('emailForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value;
+        submitEmail(email);
+    });
+}
+
+function submitEmail(email) {
+    fetch('https://n8n.skoop.digital/webhook/d3b0dec5-d870-4d0e-b810-79df3e51fad1', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Existing code to remove email form and load PDF
+        document.getElementById('emailFormContainer').remove();
+        loadPDF();
+
+        // Associate email with PostHog user
+        if (typeof posthog !== 'undefined') {
+            posthog.identify(email);
+            posthog.people.set({ email: email });
+            posthog.capture('Email Submitted', { email: email });
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+}
+
+// Load the PDF
+function loadPDF() {
+    loadingIndicator.classList.remove('hidden');
+    pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
+        pdfDoc = pdf;
+        totalSlidesSpan.textContent = pdf.numPages;
+        loadingIndicator.classList.add('hidden');
+        slideInfo.classList.remove('hidden');
+        renderPage(pageNum);
+        preloadPages(pageNum);
+    }).catch(function (error) {
+        console.error('Error loading PDF:', error);
+        loadingIndicator.textContent = 'Error loading PDF';
+    });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function sendMessageToAvatar(message) {
+    if (avatarIframe && introSpeech) {
+        avatarIframe.contentWindow.postMessage({ action: 'speak', text: message }, '*');
+    }
+}
+
+const debouncedPositionAvatar = debounce(() => {
+    if (avatarVisible) {
+        positionAvatarIframe();
+    }
+}, 100);
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    debouncedPositionAvatar();
+});
+
+// Preload pages
+function preloadPages(currentPage) {
+    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
+    pagesToLoad.forEach(pageNumber => {
+        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
+            pdfDoc.getPage(pageNumber).then(page => {
+                const viewport = page.getViewport({ scale: scale });
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.height = viewport.height;
+                tempCanvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: tempCtx,
+                    viewport: viewport
+                };
+                page.render(renderContext).promise.then(() => {
+                    pageCache.set(pageNumber, tempCanvas);
+                });
+            });
+        }
+    });
+}
+
+// Render the specified page
+function renderPage(num) {
+    pageRendering = true;
+    currentSlideSpan.textContent = num;
+
+    showSlideInfo();
+
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
+    const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
+
+    if (pageCache.has(num)) {
+        activeCtx.drawImage(pageCache.get(num), 0, 0);
+        transitionSlides(activeCanvas, inactiveCanvas);
+    } else {
+        pdfDoc.getPage(num).then(function (page) {
+            const viewport = page.getViewport({ scale: scale });
+            activeCanvas.height = viewport.height;
+            activeCanvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: activeCtx,
+                viewport: viewport
+            };
+            const renderTask = page.render(renderContext);
+
+            renderTask.promise.then(function () {
+                transitionSlides(activeCanvas, inactiveCanvas);
+            });
+        });
+    }
+
+    if (num === 3 && !avatarIframe && !videoElement) {
+        if (pushTalk) {
+            createAvatarIframe(activeCanvas);
+        } else {
+            createVideoElement(activeCanvas);
+        }
+    }
+
+    if (num === 5) {
+        if (pushTalk && avatarIframe) {
+            avatarIframe.classList.add('visible');
+            avatarVisible = true;
+            positionAvatarIframe();
+
+            if (introSpeech) {
+                setTimeout(() => {
+                    sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about <phoneme alphabet=\"ipa\" ph=\"skuːp\">Skoop</phoneme><break strength=\"medium\"/>, I'll try my best to answer correctly. </speak>");
+                }, 5000);
+            }
+        } else if (!pushTalk && videoElement) {
+            videoElement.classList.add('visible');
+            positionVideoElement();
+        }
+    } else if (num > 5) {
+        if (pushTalk && avatarIframe) {
+            if (minimalBot) {
+                avatarIframe.classList.remove('visible');
+                avatarIframe.classList.remove('bottom-right');
+                avatarVisible = false;
+            } else {
+                avatarIframe.classList.add('visible');
+                avatarIframe.classList.add('bottom-right');
+                avatarVisible = true;
+                positionAvatarIframe();
+            }
+        } else if (!pushTalk && videoElement) {
+            if (minimalBot) {
+                videoElement.classList.remove('visible');
+                videoElement.classList.remove('bottom-right');
+            } else {
+                videoElement.classList.add('visible');
+                videoElement.classList.add('bottom-right');
+                positionVideoElement();
+            }
+        }
+    } else {
+        if (pushTalk && avatarIframe) {
+            avatarIframe.classList.remove('visible');
+            avatarIframe.classList.remove('bottom-right');
+            avatarVisible = false;
+        } else if (!pushTalk && videoElement) {
+            videoElement.classList.remove('visible');
+            videoElement.classList.remove('bottom-right');
+        }
+    }
+}
+
+function transitionSlides(activeCanvas, inactiveCanvas) {
+    activeCanvas.style.display = 'block';
+    activeCanvas.style.opacity = 0;
+
+    void activeCanvas.offsetWidth;
+
+    activeCanvas.style.opacity = 1;
+    inactiveCanvas.style.opacity = 0;
+
+    setTimeout(() => {
+        inactiveCanvas.style.display = 'none';
+        pageRendering = false;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+        }
+        preloadPages(pageNum + 1);
+    }, 400);
+
+    fitCanvasToScreen(activeCanvas);
+    fitCanvasToScreen(inactiveCanvas);
+}
+
+// Queue rendering of a page
+function queueRenderPage(num) {
+    if (pageRendering) {
+        pageNumPending = num;
+    } else {
+        renderPage(num);
+    }
+}
+
+// Go to previous page
+function onPrevPage() {
+    if (pageNum <= 1) {
+        return;
+    }
+    pageNum--;
+    queueRenderPage(pageNum);
+}
+
+function onNextPage() {
+    if (pageNum >= pdfDoc.numPages) {
+        return;
+    }
+    pageNum++;
+    queueRenderPage(pageNum);
+}
+
+// Fit canvas to screen
+function fitCanvasToScreen(canvas) {
+    const containerWidth = viewerContainer.clientWidth;
+    const containerHeight = viewerContainer.clientHeight;
+    const canvasAspect = canvas.width / canvas.height;
+    const containerAspect = containerWidth / containerHeight;
+
+    let newWidth, newHeight;
+
+    if (canvasAspect > containerAspect) {
+        newWidth = containerWidth;
+        newHeight = newWidth / canvasAspect;
+    } else {
+        newHeight = containerHeight;
+        newWidth = newHeight * canvasAspect;
+    }
+
+    canvas.style.width = newWidth + 'px';
+    canvas.style.height = newHeight + 'px';
+    canvas.style.position = 'absolute';
+    canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
+    canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
+
+    if (avatarVisible) {
+        positionAvatarIframe();
+    }
+    if (videoElement) {
+        positionVideoElement();
+    }
+}
+
+// Show slide info and hide after 3 seconds
+function showSlideInfo() {
+    slideInfo.classList.remove('hidden');
+    clearTimeout(slideInfo.hideTimeout);
+    slideInfo.hideTimeout = setTimeout(() => {
+        slideInfo.classList.add('hidden');
+    }, 3000);
+}
+
+// Create and position avatar iframe
+function createAvatarIframe(canvas) {
+    console.log("Creating avatar iframe");
+    avatarIframe = document.createElement('iframe');
+    avatarIframe.id = 'avatarIframe';
+    avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?avatar=e053f447-1455-43df-b76a-9504f9276987&context=7dcc2aa8-dbd9-46b3-8b1c-c953dcd34a50&header=false&interfaceMode=simplePushTalk';
+    avatarIframe.style.background = 'transparent';
+    avatarIframe.scrolling = 'no';
+    avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+    viewerContainer.appendChild(avatarIframe);
+
+    positionAvatarIframe(canvas);
+}
+
+// Position avatar iframe
+function positionAvatarIframe() {
+    if (!avatarIframe || !avatarVisible) return;
+
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
+
+    if (avatarIframe.classList.contains('bottom-right')) {
+        const iframeWidth = containerRect.width * 0.2;
+        const iframeHeight = containerRect.height * 0.24;
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.right = '20px';
+        avatarIframe.style.bottom = '20px';
+        avatarIframe.style.left = 'auto';
+        avatarIframe.style.top = 'auto';
+    } else {
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
+
+        const iframeWidth = canvasRect.width * relativeWidth;
+        const iframeHeight = canvasRect.height * relativeHeight;
+        const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.left = `${iframeLeft}px`;
+        avatarIframe.style.top = `${iframeTop}px`;
+        avatarIframe.style.right = 'auto';
+        avatarIframe.style.bottom = 'auto';
+    }
+}
+
+// Create and position video element
+function createVideoElement(canvas) {
+    console.log("Creating video element");
+    videoElement = document.createElement('video');
+    videoElement.id = 'avatarVideo';
+    videoElement.src = 'video.mp4';
+    videoElement.style.background = 'transparent';
+    videoElement.style.borderRadius = '9%';
+    videoElement.autoplay = true;
+    videoElement.loop = true;
+    videoElement.muted = true;  // Muted to allow autoplay in most browsers
+    videoElement.playsInline = true;  // For better mobile support
+    videoElement.controls = false;  // Remove controls
+    viewerContainer.appendChild(videoElement);
+
+    positionVideoElement(canvas);
+
+    // Ensure the video plays
+    videoElement.play().catch(e => console.error("Error attempting to play video:", e));
+}
+
+
+// Position video element
+function positionVideoElement() {
+    if (!videoElement) return;
+
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
+
+    if (videoElement.classList.contains('bottom-right')) {
+        const videoWidth = containerRect.width * 0.2;
+        const videoHeight = containerRect.height * 0.24;
+        videoElement.style.width = `${videoWidth}px`;
+        videoElement.style.height = `${videoHeight}px`;
+        videoElement.style.right = '20px';
+        videoElement.style.bottom = '20px';
+        videoElement.style.left = 'auto';
+        videoElement.style.top = 'auto';
+    } else {
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
+
+        const videoWidth = canvasRect.width * relativeWidth;
+        const videoHeight = canvasRect.height * relativeHeight;
+        const videoLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const videoTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+        videoElement.style.width = `${videoWidth}px`;
+        videoElement.style.height = `${videoHeight}px`;
+        videoElement.style.left = `${videoLeft}px`;
+        videoElement.style.top = `${videoTop}px`;
+        videoElement.style.right = 'auto';
+        videoElement.style.bottom = 'auto';
+    }
+    videoElement.style.position = 'absolute';
+}
+
+// Event listeners
+document.addEventListener('keydown', function (e) {
+    switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            onPrevPage();
+            break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+        case ' ':
+            onNextPage();
+            break;
+    }
+});
+
+document.addEventListener('click', onNextPage);
+
+let touchStartX = 0;
+document.addEventListener('touchstart', function (e) {
+    touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener('touchend', function (e) {
+    const touchEndX = e.changedTouches[0].screenX;
+    if (touchEndX < touchStartX - 50) onNextPage();
+    if (touchEndX > touchStartX + 50) onPrevPage();
+});
+
+window.addEventListener('resize', () => {
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    fitCanvasToScreen(activeCanvas);
+    if (avatarVisible) {
+        positionAvatarIframe(activeCanvas);
+    }
+    if (videoElement) {
+        positionVideoElement();
+    }
+});
+
+// Fullscreen function
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Add fullscreen event listener
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'f') {
+        toggleFullScreen();
+    }
+});
+
+// Initialize
+if (getEmail) {
+    showEmailForm();
+} else {
+    loadPDF();
+}
+
+-----
+
+viewer.css:
+
 body, html {
     margin: 0;
     padding: 0;
@@ -602,12 +1119,14 @@ canvas {
 #avatarIframe {
     position: absolute;
     border: none;
-    transition: all 0s ease-in-out;
+    transition: opacity 0s ease-in-out;
     opacity: 0;
+    pointer-events: none;
 }
 
 #avatarIframe.visible {
     opacity: 1;
+    pointer-events: auto;
 }
 
 #avatarIframe.bottom-right {
@@ -617,304 +1136,113 @@ canvas {
     bottom: 20px !important;
     top: auto !important;
     left: auto !important;
-}
-----
-viewer.js
-import * as pdfjsLib from './build/pdf.mjs';
-
-// Initialize PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
-
-// Variables
-let pdfDoc = null;
-let pageNum = 1;
-let pageRendering = false;
-let pageNumPending = null;
-let scale = 1;
-const canvas1 = document.createElement('canvas');
-const canvas2 = document.createElement('canvas');
-const ctx1 = canvas1.getContext('2d');
-const ctx2 = canvas2.getContext('2d');
-const pageCache = new Map();
-let avatarIframe = null;
-let avatarVisible = false;
-
-// DOM elements
-const viewerContainer = document.getElementById('viewerContainer');
-const loadingIndicator = document.getElementById('loadingIndicator');
-const slideInfo = document.getElementById('slideInfo');
-const currentSlideSpan = document.getElementById('currentSlide');
-const totalSlidesSpan = document.getElementById('totalSlides');
-
-viewerContainer.appendChild(canvas1);
-viewerContainer.appendChild(canvas2);
-canvas2.style.display = 'none';
-
-// Load the PDF
-function loadPDF() {
-    loadingIndicator.classList.remove('hidden');
-    pdfjsLib.getDocument('presentation.pdf').promise.then(function(pdf) {
-        pdfDoc = pdf;
-        totalSlidesSpan.textContent = pdf.numPages;
-        loadingIndicator.classList.add('hidden');
-        slideInfo.classList.remove('hidden');
-        renderPage(pageNum);
-        preloadPages(pageNum);
-    }).catch(function(error) {
-        console.error('Error loading PDF:', error);
-        loadingIndicator.textContent = 'Error loading PDF';
-    });
+    min-height: 215px;
 }
 
-// Preload pages
-function preloadPages(currentPage) {
-    const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
-    pagesToLoad.forEach(pageNumber => {
-        if (pageNumber <= pdfDoc.numPages && !pageCache.has(pageNumber)) {
-            pdfDoc.getPage(pageNumber).then(page => {
-                const viewport = page.getViewport({scale: scale});
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.height = viewport.height;
-                tempCanvas.width = viewport.width;
-                
-                const renderContext = {
-                    canvasContext: tempCtx,
-                    viewport: viewport
-                };
-                page.render(renderContext).promise.then(() => {
-                    pageCache.set(pageNumber, tempCanvas);
-                });
-            });
-        }
-    });
+/* Email form styles */
+.email-form-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
 }
 
-// Render the specified page
-function renderPage(num) {
-    pageRendering = true;
-    currentSlideSpan.textContent = num;
-    
-    showSlideInfo();
-    
-    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
-    const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
-    const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
-    
-    if (pageCache.has(num)) {
-        activeCtx.drawImage(pageCache.get(num), 0, 0);
-        transitionSlides(activeCanvas, inactiveCanvas);
-    } else {
-        pdfDoc.getPage(num).then(function(page) {
-            const viewport = page.getViewport({scale: scale});
-            activeCanvas.height = viewport.height;
-            activeCanvas.width = viewport.width;
-
-            const renderContext = {
-                canvasContext: activeCtx,
-                viewport: viewport
-            };
-            const renderTask = page.render(renderContext);
-
-            renderTask.promise.then(function() {
-                transitionSlides(activeCanvas, inactiveCanvas);
-            });
-        });
-    }
-
-    // Preload avatar iframe on slide 4
-    if (num === 4 && !avatarIframe) {
-        createAvatarIframe(activeCanvas);
-    }
-
-    // Show avatar iframe on slide 5
-    if (num === 5 && avatarIframe) {
-        avatarIframe.classList.add('visible');
-        avatarVisible = true;
-    } else if (avatarIframe) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
-    }
+.email-form {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+    color: #10181f
 }
 
-function transitionSlides(activeCanvas, inactiveCanvas) {
-    activeCanvas.style.display = 'block';
-    activeCanvas.style.opacity = 0;
-
-    // Force a reflow to ensure the initial opacity is applied
-    void activeCanvas.offsetWidth;
-
-    activeCanvas.style.opacity = 1;
-    inactiveCanvas.style.opacity = 0;
-
-    // Wait for the transition to complete
-    setTimeout(() => {
-        inactiveCanvas.style.display = 'none';
-        pageRendering = false;
-        if (pageNumPending !== null) {
-            renderPage(pageNumPending);
-            pageNumPending = null;
-        }
-        preloadPages(pageNum + 1);
-    }, 400); // This should match the transition duration in the CSS
-
-    fitCanvasToScreen(activeCanvas);
-    fitCanvasToScreen(inactiveCanvas);
+.email-form h2 {
+    margin-bottom: 1rem;
 }
 
-// Queue rendering of a page
-function queueRenderPage(num) {
-    if (pageRendering) {
-        pageNumPending = num;
-    } else {
-        renderPage(num);
-    }
+.email-form input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
-// Go to previous page
-function onPrevPage() {
-    if (pageNum <= 1) {
-        return;
-    }
-    pageNum--;
-    queueRenderPage(pageNum);
+.email-form button {
+    background-color: #00b7af;
+    color: #ebebeb;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-// Go to next page
-function onNextPage() {
-    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
-        avatarIframe.classList.add('bottom-right');
-        return;
-    }
-    if (pageNum >= pdfDoc.numPages) {
-        return;
-    }
-    pageNum++;
-    queueRenderPage(pageNum);
+.email-form button:hover {
+    background-color: #039b93;
 }
 
-// Fit canvas to screen
-function fitCanvasToScreen(canvas) {
-    const containerWidth = viewerContainer.clientWidth;
-    const containerHeight = viewerContainer.clientHeight;
-    const canvasAspect = canvas.width / canvas.height;
-    const containerAspect = containerWidth / containerHeight;
-
-    let newWidth, newHeight;
-
-    if (canvasAspect > containerAspect) {
-        newWidth = containerWidth;
-        newHeight = newWidth / canvasAspect;
-    } else {
-        newHeight = containerHeight;
-        newWidth = newHeight * canvasAspect;
-    }
-
-    canvas.style.width = newWidth + 'px';
-    canvas.style.height = newHeight + 'px';
-    canvas.style.position = 'absolute';
-    canvas.style.left = ((containerWidth - newWidth) / 2) + 'px';
-    canvas.style.top = ((containerHeight - newHeight) / 2) + 'px';
-
-    if (avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
-        positionAvatarIframe(canvas);
-    }
+#avatarVideo {
+    position: absolute;
+    border-radius: 9%;
+    object-fit: cover;
+    display: none;
 }
 
-// Show slide info and hide after 3 seconds
-function showSlideInfo() {
-    slideInfo.classList.remove('hidden');
-    clearTimeout(slideInfo.hideTimeout);
-    slideInfo.hideTimeout = setTimeout(() => {
-        slideInfo.classList.add('hidden');
-    }, 3000);
+#avatarVideo.visible {
+    display: block;
 }
 
-// Create and position avatar iframe
-function createAvatarIframe(canvas) {
-    console.log("Creating avatar iframe");
-    avatarIframe = document.createElement('iframe');
-    avatarIframe.id = 'avatarIframe';
-    avatarIframe.src = 'https://avatar-stage.skoop.digital/index-agents.html?avatar=fdc710f6-33ba-4514-8cd8-44fc5218fa87&header=false&interfaceMode=simplePushTalk';
-    avatarIframe.style.background = 'transparent';
-    avatarIframe.scrolling = 'no';
-    avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-    viewerContainer.appendChild(avatarIframe);
+------
 
-    positionAvatarIframe(canvas);
-}
 
-// Position avatar iframe
-function positionAvatarIframe(canvas) {
-    if (!avatarIframe) return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skoop Deck</title>
+    <link rel="stylesheet" href="viewer.css">
+    <script src="build/pdf.mjs" type="module"></script>
+    <link rel="icon" type="image/png" sizes="192x192"
+    href="https://cdn.prod.website-files.com/6316d11d553f411d6f1fa732/6343f55adbb1a12a532f2769_skoop-favicon.png" />
 
-    const iframeWidth = '29%'; // 20% of the parent container width
-    const iframeHeight = '36%'; // To maintain a square shape
-    const leftPosition = '65.5%';
-    const topPosition = '27.2%';
+    <script>
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init push capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+        posthog.init('phc_FDZSd9oWIayFbhjAq64QT95qN9ncqyqJtXod8pRy6bi',{api_host:'https://us.i.posthog.com', person_profiles: 'identified_only' // or 'always' to create profiles for anonymous users as well
+            })
+    </script>
 
-    avatarIframe.style.width = iframeWidth;
-    avatarIframe.style.height = iframeHeight;
-    avatarIframe.style.left = leftPosition;
-    avatarIframe.style.top = topPosition;
-}
+</head>
+<body>
+    <div id="viewerContainer">
+        <div id="viewer" class="pdfViewer"></div>
+    </div>
+    <div id="loadingIndicator" class="hidden">Loading...</div>
+    <div id="slideInfo" class="hidden">Slide <span id="currentSlide"></span> of <span id="totalSlides"></span></div>
+    <script src="viewer.js" type="module"></script>
+    <script src="base64.js" type="module"></script>
 
-// Event listeners
-document.addEventListener('keydown', function(e) {
-    switch(e.key) {
-        case 'ArrowLeft':
-        case 'ArrowUp':
-            onPrevPage();
-            break;
-        case 'ArrowRight':
-        case 'ArrowDown':
-        case ' ':
-            onNextPage();
-            break;
-    }
-});
+</body>
+</html>
 
-document.addEventListener('click', onNextPage);
 
-let touchStartX = 0;
-document.addEventListener('touchstart', function(e) {
-    touchStartX = e.changedTouches[0].screenX;
-});
 
-document.addEventListener('touchend', function(e) {
-    const touchEndX = e.changedTouches[0].screenX;
-    if (touchEndX < touchStartX - 50) onNextPage();
-    if (touchEndX > touchStartX + 50) onPrevPage();
-});
-
-window.addEventListener('resize', () => {
-    fitCanvasToScreen(canvas1);
-    fitCanvasToScreen(canvas2);
-});
-
-// Fullscreen function
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-}
-
-// Add fullscreen event listener
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'f') {
-        toggleFullScreen();
-    }
-});
-
-// Initialize
-loadPDF();
---END--
 
 @@@␜-Task:
+
+
+Please add a back and forward arrow button to act as an additionaly way to transition between pages.
+
+
+
+
+
+
 
 
 Ok, additionally, there is a very thin blank line around the avatar edges. 
