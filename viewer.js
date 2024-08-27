@@ -19,6 +19,8 @@ let avatarIframe = null;
 let avatarVisible = false;
 let videoElement = null;
 
+
+
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
@@ -45,10 +47,11 @@ function getUrlParameter(name) {
     return value;
 }
 
-const pushTalk = getUrlParameter('pushtalk') !== 'false';
-const minimalBot = getUrlParameter('minimalbot') === 'true';
+const pushTalk = getUrlParameter('pushtalk') === 'true';
+const minimalBot = getUrlParameter('minimalbot') !== 'false';
 const introSpeech = getUrlParameter('introspeech') !== 'false';
 const getEmail = getUrlParameter('getemail') !== 'false';
+
 
 // Email submission form
 function showEmailForm() {
@@ -214,14 +217,41 @@ function renderPage(num) {
             videoElement.classList.add('visible');
             positionVideoElement();
         }
-    } else if ((avatarIframe || videoElement) && !minimalBot) {
+    } else if (num > 5) {
+        if (pushTalk && avatarIframe) {
+            if (minimalBot) {
+                avatarIframe.classList.remove('visible');
+                avatarIframe.classList.remove('bottom-right');
+                avatarVisible = false;
+            } else {
+                avatarIframe.classList.add('visible');
+                avatarIframe.classList.add('bottom-right');
+                avatarVisible = true;
+                positionAvatarIframe();
+            }
+        } else if (!pushTalk && videoElement) {
+            if (minimalBot) {
+                videoElement.classList.remove('visible');
+                videoElement.classList.remove('bottom-right');
+            } else {
+                videoElement.classList.add('visible');
+                videoElement.classList.add('bottom-right');
+                positionVideoElement();
+            }
+        }
+    } else {
         if (pushTalk && avatarIframe) {
             avatarIframe.classList.remove('visible');
+            avatarIframe.classList.remove('bottom-right');
             avatarVisible = false;
         } else if (!pushTalk && videoElement) {
             videoElement.classList.remove('visible');
+            videoElement.classList.remove('bottom-right');
         }
     }
+
+    // Update page info
+    document.getElementById('page_num').textContent = num;
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -265,14 +295,7 @@ function onPrevPage() {
     queueRenderPage(pageNum);
 }
 
-// Go to next page
 function onNextPage() {
-    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right') && !minimalBot) {
-        avatarIframe.classList.add('bottom-right');
-        pageNum++;
-        queueRenderPage(pageNum);
-        return;
-    }
     if (pageNum >= pdfDoc.numPages) {
         return;
     }
@@ -342,20 +365,33 @@ function positionAvatarIframe() {
     const canvasRect = activeCanvas.getBoundingClientRect();
     const containerRect = viewerContainer.getBoundingClientRect();
 
-    const relativeWidth = 0.29;
-    const relativeHeight = 0.50;
-    const relativeLeft = 0.655;
-    const relativeTop = 0.180;
+    if (avatarIframe.classList.contains('bottom-right')) {
+        const iframeWidth = containerRect.width * 0.2;
+        const iframeHeight = containerRect.height * 0.24;
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.right = '20px';
+        avatarIframe.style.bottom = '20px';
+        avatarIframe.style.left = 'auto';
+        avatarIframe.style.top = 'auto';
+    } else {
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
 
-    const iframeWidth = canvasRect.width * relativeWidth;
-    const iframeHeight = canvasRect.height * relativeHeight;
-    const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
-    const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+        const iframeWidth = canvasRect.width * relativeWidth;
+        const iframeHeight = canvasRect.height * relativeHeight;
+        const iframeLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const iframeTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
 
-    avatarIframe.style.width = `${iframeWidth}px`;
-    avatarIframe.style.height = `${iframeHeight}px`;
-    avatarIframe.style.left = `${iframeLeft}px`;
-    avatarIframe.style.top = `${iframeTop}px`;
+        avatarIframe.style.width = `${iframeWidth}px`;
+        avatarIframe.style.height = `${iframeHeight}px`;
+        avatarIframe.style.left = `${iframeLeft}px`;
+        avatarIframe.style.top = `${iframeTop}px`;
+        avatarIframe.style.right = 'auto';
+        avatarIframe.style.bottom = 'auto';
+    }
 }
 
 // Create and position video element
@@ -380,20 +416,33 @@ function positionVideoElement() {
     const canvasRect = activeCanvas.getBoundingClientRect();
     const containerRect = viewerContainer.getBoundingClientRect();
 
-    const relativeWidth = 0.29;
-    const relativeHeight = 0.50;
-    const relativeLeft = 0.655;
-    const relativeTop = 0.180;
+    if (videoElement.classList.contains('bottom-right')) {
+        const videoWidth = containerRect.width * 0.2;
+        const videoHeight = containerRect.height * 0.24;
+        videoElement.style.width = `${videoWidth}px`;
+        videoElement.style.height = `${videoHeight}px`;
+        videoElement.style.right = '20px';
+        videoElement.style.bottom = '20px';
+        videoElement.style.left = 'auto';
+        videoElement.style.top = 'auto';
+    } else {
+        const relativeWidth = 0.29;
+        const relativeHeight = 0.50;
+        const relativeLeft = 0.655;
+        const relativeTop = 0.180;
 
-    const videoWidth = canvasRect.width * relativeWidth;
-    const videoHeight = canvasRect.height * relativeHeight;
-    const videoLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
-    const videoTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+        const videoWidth = canvasRect.width * relativeWidth;
+        const videoHeight = canvasRect.height * relativeHeight;
+        const videoLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+        const videoTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
 
-    videoElement.style.width = `${videoWidth}px`;
-    videoElement.style.height = `${videoHeight}px`;
-    videoElement.style.left = `${videoLeft}px`;
-    videoElement.style.top = `${videoTop}px`;
+        videoElement.style.width = `${videoWidth}px`;
+        videoElement.style.height = `${videoHeight}px`;
+        videoElement.style.left = `${videoLeft}px`;
+        videoElement.style.top = `${videoTop}px`;
+        videoElement.style.right = 'auto';
+        videoElement.style.bottom = 'auto';
+    }
     videoElement.style.position = 'absolute';
 }
 
