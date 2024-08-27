@@ -20,17 +20,21 @@ let avatarVisible = false;
 let videoElement = null;
 
 
-
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
+const navigationControls = document.getElementById('navigationControls');
+const prevButton = document.getElementById('prevButton');
+const nextButton = document.getElementById('nextButton');
 const slideInfo = document.getElementById('slideInfo');
 const currentSlideSpan = document.getElementById('currentSlide');
 const totalSlidesSpan = document.getElementById('totalSlides');
 
+
 viewerContainer.appendChild(canvas1);
 viewerContainer.appendChild(canvas2);
 canvas2.style.display = 'none';
+
 
 function getUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -471,6 +475,10 @@ function positionVideoElement() {
     videoElement.style.position = 'absolute';
 }
 
+prevButton.addEventListener('click', onPrevPage);
+nextButton.addEventListener('click', onNextPage);
+
+
 // Event listeners
 document.addEventListener('keydown', function (e) {
     switch (e.key) {
@@ -485,6 +493,7 @@ document.addEventListener('keydown', function (e) {
             break;
     }
 });
+
 
 document.addEventListener('click', onNextPage);
 
