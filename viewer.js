@@ -49,7 +49,7 @@ function getUrlParameter(name) {
 
 const pushTalk = getUrlParameter('pushtalk') === 'true';
 const minimalBot = getUrlParameter('minimalbot') !== 'false';
-const introSpeech = getUrlParameter('introspeech') !== 'false';
+const introSpeech = getUrlParameter('introspeech') === 'true';
 const getEmail = getUrlParameter('getemail') !== 'false';
 
 
