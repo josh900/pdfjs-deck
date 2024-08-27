@@ -491,7 +491,7 @@ async function createThumbnails() {
         thumbnailItem.classList.add('thumbnail-item');
         thumbnailItem.innerHTML = `
             <img src="${canvas.toDataURL()}" alt="Page ${i}">
-            <span>Page ${i}</span>
+            <span> ${i}</span>
         `;
         thumbnailItem.addEventListener('click', () => {
             pageNum = i;
