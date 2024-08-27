@@ -19,7 +19,6 @@ let avatarIframe = null;
 let avatarVisible = false;
 let videoElement = null;
 
-
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
@@ -29,12 +28,13 @@ const nextButton = document.getElementById('nextButton');
 const slideInfo = document.getElementById('slideInfo');
 const currentSlideSpan = document.getElementById('currentSlide');
 const totalSlidesSpan = document.getElementById('totalSlides');
-
+const slideSwitcher = document.getElementById('slideSwitcher');
+const hamburgerButton = document.getElementById('hamburgerButton');
+const thumbnailContainer = document.getElementById('thumbnailContainer');
 
 viewerContainer.appendChild(canvas1);
 viewerContainer.appendChild(canvas2);
 canvas2.style.display = 'none';
-
 
 function getUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -42,17 +42,14 @@ function getUrlParameters() {
 
     for (const [key, value] of urlParams.entries()) {
         try {
-            // Try to decode as base64
             const decodedKey = decode(key);
             if (decodedKey.includes('=')) {
                 const [dKey, dValue] = decodedKey.split('=');
                 params[dKey] = dValue;
             } else {
-                // If it's not a valid base64 encoded parameter, use it as is
                 params[key] = value;
             }
         } catch (e) {
-            // If decoding fails, use the parameter as is
             params[key] = value;
         }
     }
@@ -60,7 +57,6 @@ function getUrlParameters() {
     return params;
 }
 
-// Use the new function to get all parameters
 const urlParams = getUrlParameters();
 
 const pushTalk = urlParams['pushtalk'] === 'true';
@@ -68,8 +64,6 @@ const minimalBot = urlParams['minimalbot'] !== 'false';
 const introSpeech = urlParams['introspeech'] === 'true';
 const getEmail = urlParams['getemail'] !== 'false';
 
-
-// Email submission form
 function showEmailForm() {
     const formHtml = `
         <div id="emailFormContainer" class="email-form-container">
@@ -99,11 +93,9 @@ function submitEmail(email) {
     })
     .then(response => response.json())
     .then(data => {
-        // Existing code to remove email form and load PDF
         document.getElementById('emailFormContainer').remove();
         loadPDF();
 
-        // Associate email with PostHog user
         if (typeof posthog !== 'undefined') {
             posthog.identify(email);
             posthog.people.set({ email: email });
@@ -116,7 +108,6 @@ function submitEmail(email) {
     });
 }
 
-// Load the PDF
 function loadPDF() {
     loadingIndicator.classList.remove('hidden');
     pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
@@ -126,6 +117,7 @@ function loadPDF() {
         slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
+        createThumbnails();
     }).catch(function (error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
@@ -162,7 +154,6 @@ window.addEventListener('resize', () => {
     debouncedPositionAvatar();
 });
 
-// Preload pages
 function preloadPages(currentPage) {
     const pagesToLoad = [currentPage, currentPage + 1, currentPage + 2];
     pagesToLoad.forEach(pageNumber => {
@@ -186,13 +177,11 @@ function preloadPages(currentPage) {
     });
 }
 
-// Render the specified page
 function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
 
     showSlideInfo();
-
 
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
     const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
@@ -299,7 +288,6 @@ function transitionSlides(activeCanvas, inactiveCanvas) {
     fitCanvasToScreen(inactiveCanvas);
 }
 
-// Queue rendering of a page
 function queueRenderPage(num) {
     if (pageRendering) {
         pageNumPending = num;
@@ -315,6 +303,7 @@ function onPrevPage() {
     pageNum--;
     queueRenderPage(pageNum);
 }
+
 function onNextPage() {
     if (pageNum >= pdfDoc.numPages) {
         return;
@@ -323,7 +312,6 @@ function onNextPage() {
     queueRenderPage(pageNum);
 }
 
-// Fit canvas to screen
 function fitCanvasToScreen(canvas) {
     const containerWidth = viewerContainer.clientWidth;
     const containerHeight = viewerContainer.clientHeight;
@@ -354,7 +342,6 @@ function fitCanvasToScreen(canvas) {
     }
 }
 
-// Show slide info and hide after 3 seconds
 function showSlideInfo() {
     slideInfo.style.opacity = '1';
     clearTimeout(slideInfo.hideTimeout);
@@ -363,8 +350,6 @@ function showSlideInfo() {
     }, 3000);
 }
 
-
-// Create and position avatar iframe
 function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
     avatarIframe = document.createElement('iframe');
@@ -378,7 +363,6 @@ function createAvatarIframe(canvas) {
     positionAvatarIframe(canvas);
 }
 
-// Position avatar iframe
 function positionAvatarIframe() {
     if (!avatarIframe || !avatarVisible) return;
 
@@ -415,7 +399,6 @@ function positionAvatarIframe() {
     }
 }
 
-// Create and position video element
 function createVideoElement(canvas) {
     console.log("Creating video element");
     videoElement = document.createElement('video');
@@ -436,8 +419,6 @@ function createVideoElement(canvas) {
     videoElement.play().catch(e => console.error("Error attempting to play video:", e));
 }
 
-
-// Position video element
 function positionVideoElement() {
     if (!videoElement) return;
 
@@ -475,6 +456,55 @@ function positionVideoElement() {
     videoElement.style.position = 'absolute';
 }
 
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Slide Switcher Functions
+function toggleSlideSwitcher() {
+    slideSwitcher.classList.toggle('open');
+    if (slideSwitcher.classList.contains('open')) {
+        navigationControls.style.left = '320px';
+    } else {
+        navigationControls.style.left = '20px';
+    }
+}
+
+async function createThumbnails() {
+    thumbnailContainer.innerHTML = '';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 0.2 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        
+        const thumbnailItem = document.createElement('div');
+        thumbnailItem.classList.add('thumbnail-item');
+        thumbnailItem.innerHTML = `
+            <img src="${canvas.toDataURL()}" alt="Page ${i}">
+            <span>Page ${i}</span>
+        `;
+        thumbnailItem.addEventListener('click', () => {
+            pageNum = i;
+            queueRenderPage(pageNum);
+            toggleSlideSwitcher();
+        });
+        thumbnailContainer.appendChild(thumbnailItem);
+    }
+}
+
+// Event Listeners
+hamburgerButton.addEventListener('click', toggleSlideSwitcher);
+
 prevButton.addEventListener('click', function(e) {
     e.stopPropagation();
     onPrevPage();
@@ -485,7 +515,6 @@ nextButton.addEventListener('click', function(e) {
     onNextPage();
 });
 
-// Event listeners
 document.addEventListener('keydown', function (e) {
     switch (e.key) {
         case 'ArrowLeft':
@@ -497,13 +526,14 @@ document.addEventListener('keydown', function (e) {
         case ' ':
             onNextPage();
             break;
+        case 'f':
+            toggleFullScreen();
+            break;
     }
 });
 
-
 document.addEventListener('click', function(e) {
-    // Only trigger onNextPage if the click is not on a button
-    if (!e.target.closest('.navButton')) {
+    if (!e.target.closest('.navButton') && !e.target.closest('.slide-switcher')) {
         onNextPage();
     }
 });
@@ -530,24 +560,6 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Fullscreen function
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-}
-
-// Add fullscreen event listener
-document.addEventListener('keydown', function (e) {
-    if (e.key === 'f') {
-        toggleFullScreen();
-    }
-});
-
 // Initialize
 if (getEmail) {
     showEmailForm();
@@ -555,4 +567,5 @@ if (getEmail) {
     loadPDF();
 }
 
+// Make sure navigation controls are always visible
 navigationControls.style.opacity = '1';
