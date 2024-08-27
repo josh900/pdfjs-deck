@@ -193,6 +193,7 @@ function renderPage(num) {
 
     showSlideInfo();
 
+
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
     const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
     const activeCtx = activeCanvas === canvas1 ? ctx1 : ctx2;
@@ -357,12 +358,13 @@ function fitCanvasToScreen(canvas) {
 
 // Show slide info and hide after 3 seconds
 function showSlideInfo() {
-    slideInfo.classList.remove('hidden');
+    slideInfo.style.opacity = '1';
     clearTimeout(slideInfo.hideTimeout);
     slideInfo.hideTimeout = setTimeout(() => {
-        slideInfo.classList.add('hidden');
+        slideInfo.style.opacity = '0';
     }, 3000);
 }
+
 
 // Create and position avatar iframe
 function createAvatarIframe(canvas) {
@@ -543,3 +545,5 @@ if (getEmail) {
 } else {
     loadPDF();
 }
+
+navigationControls.style.opacity = '1';
