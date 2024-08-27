@@ -17,10 +17,7 @@ const ctx2 = canvas2.getContext('2d');
 const pageCache = new Map();
 let avatarIframe = null;
 let avatarVisible = false;
-let pushtalk = true;
-let minimalbot = false;
-let introspeech = true;
-let getemail = false;
+let videoElement = null;
 
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
@@ -33,32 +30,72 @@ viewerContainer.appendChild(canvas1);
 viewerContainer.appendChild(canvas2);
 canvas2.style.display = 'none';
 
-function getUrlParameter(name) {
-    const params = new URLSearchParams(window.location.search);
-    let value = params.get(name);
-    if (value === null) {
-        // Try to get the base64 encoded version
-        const encodedName = encode(name);
-        value = params.get(encodedName);
-        if (value !== null) {
-            value = decode(value);
+// Parse URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const getParam = (name) => {
+    const encoded = urlParams.get(name);
+    if (encoded) {
+        try {
+            return decode(encoded);
+        } catch {
+            return encoded;
         }
     }
-    return value;
+    return null;
+};
+
+const pushTalk = getParam('pushtalk') === 'true';
+const minimalBot = getParam('minimalbot') === 'true';
+const introSpeech = getParam('introspeech') !== 'false';
+const getEmail = getParam('getemail') !== 'false';
+
+// Email submission form
+if (getEmail) {
+    const emailForm = document.createElement('form');
+    emailForm.innerHTML = `
+        <h2>Please enter your email to access the presentation</h2>
+        <input type="email" id="emailInput" required>
+        <button type="submit">Submit</button>
+    `;
+    emailForm.style.position = 'fixed';
+    emailForm.style.top = '50%';
+    emailForm.style.left = '50%';
+    emailForm.style.transform = 'translate(-50%, -50%)';
+    emailForm.style.backgroundColor = 'white';
+    emailForm.style.padding = '20px';
+    emailForm.style.borderRadius = '5px';
+    emailForm.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
+
+    emailForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value;
+        try {
+            const response = await fetch('https://n8n.skoop.digital/webhook/d3b0dec5-d870-4d0e-b810-79df3e51fad1', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+            });
+            if (response.ok) {
+                document.body.removeChild(emailForm);
+                loadPDF();
+            } else {
+                alert('Failed to submit email. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        }
+    };
+
+    document.body.appendChild(emailForm);
+} else {
+    loadPDF();
 }
 
 // Load the PDF
 function loadPDF() {
-    pushtalk = getUrlParameter('pushtalk') !== 'false';
-    minimalbot = getUrlParameter('minimalbot') === 'true';
-    introspeech = getUrlParameter('introspeech') !== 'false';
-    getemail = getUrlParameter('getemail') === 'true';
-
-    if (getemail) {
-        showEmailForm();
-        return;
-    }
-
     loadingIndicator.classList.remove('hidden');
     pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
         pdfDoc = pdf;
@@ -70,39 +107,6 @@ function loadPDF() {
     }).catch(function (error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
-    });
-}
-
-function showEmailForm() {
-    const emailForm = document.createElement('div');
-    emailForm.innerHTML = `
-        <form id="emailForm" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-            <h2>Please enter your email to access the presentation</h2>
-            <input type="email" id="emailInput" required style="display: block; width: 100%; margin: 10px 0; padding: 5px;">
-            <button type="submit" style="display: block; width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Submit</button>
-        </form>
-    `;
-    document.body.appendChild(emailForm);
-
-    document.getElementById('emailForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const email = document.getElementById('emailInput').value;
-        fetch('https://n8n.skoop.digital/webhook/d3b0dec5-d870-4d0e-b810-79df3e51fad1', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: email }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            document.body.removeChild(emailForm);
-            loadPDF();
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
     });
 }
 
@@ -119,7 +123,7 @@ function debounce(func, wait) {
 }
 
 function sendMessageToAvatar(message) {
-    if (avatarIframe && pushtalk) {
+    if (avatarIframe && introSpeech) {
         avatarIframe.contentWindow.postMessage({ action: 'speak', text: message }, '*');
     }
 }
@@ -192,29 +196,36 @@ function renderPage(num) {
         });
     }
 
-    // Preload avatar iframe on slide 3
-    if (num === 3 && !avatarIframe) {
-        createAvatarIframe(activeCanvas);
+    // Avatar or video logic
+    if (num === 3 && !avatarIframe && !videoElement) {
+        if (pushTalk) {
+            createAvatarIframe(activeCanvas);
+        } else {
+            createVideoElement(activeCanvas);
+        }
     }
 
-    // Show avatar iframe on slide 5
     if (num === 5 && avatarIframe) {
-        avatarIframe.classList.add('visible');
-        avatarVisible = true;
-        positionAvatarIframe();
-        
-        if (introspeech && pushtalk) {
+        if (introSpeech) {
             setTimeout(() => {
                 sendMessageToAvatar("<speak> Hello there, <break strength=\"medium\"/> feel free to ask me anything about <phoneme alphabet=\"ipa\" ph=\"skuːp\">Skoop</phoneme><break strength=\"medium\"/>, I'll try my best to answer correctly. </speak>");
             }, 5000);
         }
-    } else if (avatarIframe && !minimalbot) {
+    }
+
+    if (num === 5 && avatarIframe) {
+        avatarIframe.classList.add('visible');
+        avatarVisible = true;
+        positionAvatarIframe();
+    } else if (avatarIframe && !minimalBot) {
         avatarIframe.classList.remove('visible');
         avatarVisible = false;
-        avatarIframe.classList.add('bottom-right');
-    } else if (avatarIframe && minimalbot) {
-        avatarIframe.classList.remove('visible');
-        avatarVisible = false;
+    }
+
+    if (minimalBot && num !== 5 && avatarIframe) {
+        avatarIframe.style.display = 'none';
+    } else if (minimalBot && num === 5 && avatarIframe) {
+        avatarIframe.style.display = 'block';
     }
 }
 
@@ -263,7 +274,7 @@ function onPrevPage() {
 
 // Go to next page
 function onNextPage() {
-    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right')) {
+    if (pageNum === 5 && avatarIframe && !avatarIframe.classList.contains('bottom-right') && !minimalBot) {
         avatarIframe.classList.add('bottom-right');
         pageNum++;
         queueRenderPage(pageNum);
@@ -316,24 +327,29 @@ function showSlideInfo() {
 // Create and position avatar iframe
 function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
-    if (pushtalk) {
-        avatarIframe = document.createElement('iframe');
-        avatarIframe.id = 'avatarIframe';
-        avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?avatar=e053f447-1455-43df-b76a-9504f9276987&context=7dcc2aa8-dbd9-46b3-8b1c-c953dcd34a50&header=false&interfaceMode=simplePushTalk';
-        avatarIframe.style.background = 'transparent';
-        avatarIframe.scrolling = 'no';
-        avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-    } else {
-        avatarIframe = document.createElement('video');
-        avatarIframe.id = 'avatarVideo';
-        avatarIframe.src = 'video.mp4';
-        avatarIframe.autoplay = true;
-        avatarIframe.loop = true;
-        avatarIframe.muted = true;
-    }
+    avatarIframe = document.createElement('iframe');
+    avatarIframe.id = 'avatarIframe';
+    avatarIframe.src = 'https://avatar.skoop.digital/index-agents.html?avatar=e053f447-1455-43df-b76a-9504f9276987&context=7dcc2aa8-dbd9-46b3-8b1c-c953dcd34a50&header=false&interfaceMode=simplePushTalk';
+    avatarIframe.style.background = 'transparent';
+    avatarIframe.scrolling = 'no';
+    avatarIframe.allow = "microphone; camera; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
     viewerContainer.appendChild(avatarIframe);
 
     positionAvatarIframe(canvas);
+}
+
+// Create and position video element
+function createVideoElement(canvas) {
+    console.log("Creating video element");
+    videoElement = document.createElement('video');
+    videoElement.id = 'avatarVideo';
+    videoElement.src = 'video.mp4';
+    videoElement.style.position = 'absolute';
+    videoElement.style.background = 'transparent';
+    videoElement.controls = true;
+    viewerContainer.appendChild(videoElement);
+
+    positionVideoElement(canvas);
 }
 
 // Position avatar iframe
@@ -359,6 +375,31 @@ function positionAvatarIframe() {
     avatarIframe.style.height = `${iframeHeight}px`;
     avatarIframe.style.left = `${iframeLeft}px`;
     avatarIframe.style.top = `${iframeTop}px`;
+}
+
+// Position video element
+function positionVideoElement() {
+    if (!videoElement) return;
+
+    const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
+    const canvasRect = activeCanvas.getBoundingClientRect();
+    const containerRect = viewerContainer.getBoundingClientRect();
+
+    // These percentages represent the position and size relative to the PDF
+    const relativeWidth = 0.29;
+    const relativeHeight = 0.50;
+    const relativeLeft = 0.655;
+    const relativeTop = 0.180;
+
+    const videoWidth = canvasRect.width * relativeWidth;
+    const videoHeight = canvasRect.height * relativeHeight;
+    const videoLeft = canvasRect.left - containerRect.left + (canvasRect.width * relativeLeft);
+    const videoTop = canvasRect.top - containerRect.top + (canvasRect.height * relativeTop);
+
+    videoElement.style.width = `${videoWidth}px`;
+    videoElement.style.height = `${videoHeight}px`;
+    videoElement.style.left = `${videoLeft}px`;
+    videoElement.style.top = `${videoTop}px`;
 }
 
 // Event listeners
@@ -395,6 +436,9 @@ window.addEventListener('resize', () => {
     if (avatarVisible) {
         positionAvatarIframe(activeCanvas);
     }
+    if (videoElement) {
+        positionVideoElement(activeCanvas);
+    }
 });
 
 // Fullscreen function
@@ -415,20 +459,7 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
-// Add Posthog tracking
-const script = document.createElement('script');
-script.innerHTML = `
-    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init push capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-    posthog.init('phc_FDZSd9oWIayFbhjAq64QT95qN9ncqyqJtXod8pRy6bi',{api_host:'https://us.i.posthog.com', person_profiles: 'identified_only'});
-`;
-document.head.appendChild(script);
-
 // Initialize
-loadPDF();
-
-// Export functions for use in other modules if needed
-export {
-    onPrevPage,
-    onNextPage,
-    toggleFullScreen
-};
+if (!getEmail) {
+    loadPDF();
+}
