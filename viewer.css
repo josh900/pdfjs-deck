@@ -37,7 +37,6 @@ canvas {
     background-color: rgba(184, 184, 184, 0.7);
     padding: 20px 40px;
     border-radius: 10px;
-    
 }
 
 #loadingIndicator::after {
@@ -58,10 +57,28 @@ canvas {
     100% { transform: rotate(360deg); }
 }
 
-#slideInfo {
+#navigationControls {
     position: absolute;
     bottom: 20px;
     left: 20px;
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+}
+
+.navButton {
+    background-color: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 5px 10px;
+    margin-right: 5px;
+    border-radius: 5px;
+    outline: none;
+}
+
+#slideInfo {
     font-size: 16px;
     background-color: rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
