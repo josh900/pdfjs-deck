@@ -82,7 +82,6 @@ canvas {
     pointer-events: none;
 }
 
-
 #avatarIframe.visible {
     opacity: 1;
     pointer-events: auto;
@@ -96,4 +95,61 @@ canvas {
     top: auto !important;
     left: auto !important;
     min-height: 215px;
+}
+
+/* Email form styles */
+.email-form-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.email-form {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.email-form h2 {
+    margin-bottom: 1rem;
+}
+
+.email-form input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.email-form button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.email-form button:hover {
+    background-color: #0056b3;
+}
+
+#avatarVideo {
+    position: absolute;
+    border-radius: 9%;
+    object-fit: cover;
+    display: none;
+}
+
+#avatarVideo.visible {
+    display: block;
 }
