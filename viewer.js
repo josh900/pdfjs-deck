@@ -18,6 +18,8 @@ const pageCache = new Map();
 let avatarIframe = null;
 let avatarVisible = false;
 let videoElement = null;
+const prevButton = document.getElementById('prevButton');
+const nextButton = document.getElementById('nextButton');
 
 
 
@@ -485,6 +487,16 @@ document.addEventListener('keydown', function (e) {
             break;
     }
 });
+
+document.addEventListener('click', function(e) {
+    // Only call onNextPage if the click is not on a button
+    if (!e.target.closest('button')) {
+        onNextPage();
+    }
+});
+
+prevButton.addEventListener('click', onPrevPage);
+nextButton.addEventListener('click', onNextPage);
 
 document.addEventListener('click', onNextPage);
 
