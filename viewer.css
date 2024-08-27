@@ -97,3 +97,30 @@ canvas {
     left: auto !important;
     min-height: 215px;
 }
+
+/* Add these styles at the end of the file */
+#avatarIframe,
+#avatarVideo {
+    position: absolute;
+    border: none;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#avatarIframe.visible,
+#avatarVideo.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#avatarIframe.bottom-right,
+#avatarVideo.bottom-right {
+    width: 20% !important;
+    height: 24% !important;
+    right: 20px !important;
+    bottom: 20px !important;
+    top: auto !important;
+    left: auto !important;
+    min-height: 215px;
+}
