@@ -36,26 +36,16 @@ canvas2.style.display = 'none';
 function getUrlParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     let value = urlParams.get(name);
-    
     if (value === null) {
         // Try decoding base64
-        for (const [key, val] of urlParams.entries()) {
-            try {
-                const decodedKey = decode(key);
-                if (decodedKey === name) {
-                    value = decode(val);
-                    break;
-                }
-            } catch (e) {
-                // If decoding fails, it's not a base64 encoded parameter
-                continue;
-            }
+        const encodedName = encode(name);
+        value = urlParams.get(encodedName);
+        if (value !== null) {
+            value = decode(value);
         }
     }
-    
     return value;
 }
-
 
 const pushTalk = getUrlParameter('pushtalk') === 'true';
 const minimalBot = getUrlParameter('minimalbot') !== 'false';
