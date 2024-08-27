@@ -63,7 +63,6 @@ const introSpeech = getUrlParameter('introspeech') === 'true';
 const getEmail = getUrlParameter('getemail') !== 'false';
 
 
-
 // Email submission form
 function showEmailForm() {
     const formHtml = `
