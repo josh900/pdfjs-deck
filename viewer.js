@@ -478,7 +478,7 @@ function toggleFullScreen() {
 function toggleSlideSwitcher() {
     slideSwitcher.classList.toggle('open');
     if (slideSwitcher.classList.contains('open')) {
-        navigationControls.style.left = '220px';
+        navigationControls.style.left = '240px';
     } else {
         navigationControls.style.left = '20px';
     }
