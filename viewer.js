@@ -114,7 +114,7 @@ function loadPDF() {
         pdfDoc = pdf;
         totalSlidesSpan.textContent = pdf.numPages;
         loadingIndicator.classList.add('hidden');
-        slideInfo.classList.remove('hidden');
+        // Remove this line: slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
         createThumbnails();
@@ -181,7 +181,10 @@ function renderPage(num) {
     pageRendering = true;
     currentSlideSpan.textContent = num;
 
-    showSlideInfo();
+    // Only show slide info if it's not the initial load
+    if (num !== 1 || slideInfo.classList.contains('shown')) {
+        showSlideInfo();
+    }
 
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
     const inactiveCanvas = canvas1.style.display !== 'none' ? canvas2 : canvas1;
@@ -301,6 +304,7 @@ function onPrevPage() {
         return;
     }
     pageNum--;
+    showSlideInfo(); // Add this line
     queueRenderPage(pageNum);
 }
 
@@ -309,6 +313,7 @@ function onNextPage() {
         return;
     }
     pageNum++;
+    showSlideInfo(); // Add this line
     queueRenderPage(pageNum);
 }
 
@@ -343,12 +348,15 @@ function fitCanvasToScreen(canvas) {
 }
 
 function showSlideInfo() {
+    slideInfo.classList.remove('hidden');
+    slideInfo.classList.add('shown');
     slideInfo.style.opacity = '1';
     clearTimeout(slideInfo.hideTimeout);
     slideInfo.hideTimeout = setTimeout(() => {
         slideInfo.style.opacity = '0';
     }, 3000);
 }
+
 
 function createAvatarIframe(canvas) {
     console.log("Creating avatar iframe");
@@ -519,11 +527,13 @@ document.addEventListener('keydown', function (e) {
     switch (e.key) {
         case 'ArrowLeft':
         case 'ArrowUp':
+            showSlideInfo(); // Add this line
             onPrevPage();
             break;
         case 'ArrowRight':
         case 'ArrowDown':
         case ' ':
+            showSlideInfo(); // Add this line
             onNextPage();
             break;
         case 'f':
@@ -532,11 +542,14 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
+
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.navButton') && !e.target.closest('.slide-switcher')) {
+        showSlideInfo(); // Add this line
         onNextPage();
     }
 });
+
 
 let touchStartX = 0;
 document.addEventListener('touchstart', function (e) {
@@ -545,9 +558,16 @@ document.addEventListener('touchstart', function (e) {
 
 document.addEventListener('touchend', function (e) {
     const touchEndX = e.changedTouches[0].screenX;
-    if (touchEndX < touchStartX - 50) onNextPage();
-    if (touchEndX > touchStartX + 50) onPrevPage();
+    if (touchEndX < touchStartX - 50) {
+        showSlideInfo(); // Add this line
+        onNextPage();
+    }
+    if (touchEndX > touchStartX + 50) {
+        showSlideInfo(); // Add this line
+        onPrevPage();
+    }
 });
+
 
 window.addEventListener('resize', () => {
     const activeCanvas = canvas1.style.display !== 'none' ? canvas1 : canvas2;
