@@ -175,8 +175,8 @@ canvas {
 .slide-switcher {
     position: absolute;
     top: 0;
-    left: -300px;
-    width: 300px;
+    left: -220px;
+    width: 220px;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.8);
     transition: left 0.3s ease-in-out;
@@ -218,7 +218,7 @@ canvas {
     width: 160px;
     height: 90px;
     object-fit: cover;
-    margin-right: 10px;
+    margin-left: 10px;
 }
 
 .thumbnail-item span {
