@@ -211,6 +211,13 @@ canvas {
     margin-left: 5px;
 }
 
+.thumbnail-item .page-number {
+    min-width: 30px;
+    text-align: right;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
 .thumbnail-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
