@@ -249,9 +249,6 @@ function renderPage(num) {
             videoElement.classList.remove('bottom-right');
         }
     }
-
-    // Update page info
-    document.getElementById('page_num').textContent = num;
 }
 
 function transitionSlides(activeCanvas, inactiveCanvas) {
@@ -402,11 +399,19 @@ function createVideoElement(canvas) {
     videoElement.src = 'video.mp4';
     videoElement.style.background = 'transparent';
     videoElement.style.borderRadius = '9%';
-    videoElement.controls = true;
+    videoElement.autoplay = true;
+    videoElement.loop = true;
+    videoElement.muted = true;  // Muted to allow autoplay in most browsers
+    videoElement.playsInline = true;  // For better mobile support
+    videoElement.controls = false;  // Remove controls
     viewerContainer.appendChild(videoElement);
 
     positionVideoElement(canvas);
+
+    // Ensure the video plays
+    videoElement.play().catch(e => console.error("Error attempting to play video:", e));
 }
+
 
 // Position video element
 function positionVideoElement() {
