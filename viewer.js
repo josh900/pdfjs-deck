@@ -308,7 +308,6 @@ function queueRenderPage(num) {
     }
 }
 
-// Go to previous page
 function onPrevPage() {
     if (pageNum <= 1) {
         return;
@@ -316,7 +315,6 @@ function onPrevPage() {
     pageNum--;
     queueRenderPage(pageNum);
 }
-
 function onNextPage() {
     if (pageNum >= pdfDoc.numPages) {
         return;
@@ -477,9 +475,15 @@ function positionVideoElement() {
     videoElement.style.position = 'absolute';
 }
 
-prevButton.addEventListener('click', onPrevPage);
-nextButton.addEventListener('click', onNextPage);
+prevButton.addEventListener('click', function(e) {
+    e.stopPropagation();
+    onPrevPage();
+});
 
+nextButton.addEventListener('click', function(e) {
+    e.stopPropagation();
+    onNextPage();
+});
 
 // Event listeners
 document.addEventListener('keydown', function (e) {
@@ -497,7 +501,12 @@ document.addEventListener('keydown', function (e) {
 });
 
 
-document.addEventListener('click', onNextPage);
+document.addEventListener('click', function(e) {
+    // Only trigger onNextPage if the click is not on a button
+    if (!e.target.closest('.navButton')) {
+        onNextPage();
+    }
+});
 
 let touchStartX = 0;
 document.addEventListener('touchstart', function (e) {
