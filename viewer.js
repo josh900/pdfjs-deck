@@ -59,10 +59,10 @@ function getUrlParameters() {
 // Use the new function to get all parameters
 const urlParams = getUrlParameters();
 
-const pushTalk = getUrlParameter('pushtalk') === 'true';
-const minimalBot = getUrlParameter('minimalbot') !== 'false';
-const introSpeech = getUrlParameter('introspeech') === 'true';
-const getEmail = getUrlParameter('getemail') !== 'false';
+const pushTalk = urlParams['pushtalk'] === 'true';
+const minimalBot = urlParams['minimalbot'] !== 'false';
+const introSpeech = urlParams['introspeech'] === 'true';
+const getEmail = urlParams['getemail'] !== 'false';
 
 
 // Email submission form
