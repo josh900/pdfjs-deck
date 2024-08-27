@@ -51,23 +51,24 @@ const getEmail = getParam('getemail') !== 'false';
 
 // Email submission form
 if (getEmail) {
-    const emailFormOverlay = document.createElement('div');
-    emailFormOverlay.className = 'email-form-overlay';
-    
     const emailForm = document.createElement('form');
-    emailForm.className = 'email-form';
     emailForm.innerHTML = `
         <h2>Please enter your email to access the presentation</h2>
-        <input type="email" id="emailInput" required placeholder="Enter your email">
+        <input type="email" id="emailInput" required>
         <button type="submit">Submit</button>
-        <div class="error-message" style="display: none;"></div>
     `;
+    emailForm.style.position = 'fixed';
+    emailForm.style.top = '50%';
+    emailForm.style.left = '50%';
+    emailForm.style.transform = 'translate(-50%, -50%)';
+    emailForm.style.backgroundColor = 'white';
+    emailForm.style.padding = '20px';
+    emailForm.style.borderRadius = '5px';
+    emailForm.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
 
     emailForm.onsubmit = async (e) => {
         e.preventDefault();
         const email = document.getElementById('emailInput').value;
-        const errorMessage = emailForm.querySelector('.error-message');
-        
         try {
             const response = await fetch('https://n8n.skoop.digital/webhook/d3b0dec5-d870-4d0e-b810-79df3e51fad1', {
                 method: 'POST',
@@ -77,21 +78,18 @@ if (getEmail) {
                 body: JSON.stringify({ email }),
             });
             if (response.ok) {
-                document.body.removeChild(emailFormOverlay);
+                document.body.removeChild(emailForm);
                 loadPDF();
             } else {
-                errorMessage.textContent = 'Failed to submit email. Please try again.';
-                errorMessage.style.display = 'block';
+                alert('Failed to submit email. Please try again.');
             }
         } catch (error) {
             console.error('Error:', error);
-            errorMessage.textContent = 'An error occurred. Please try again.';
-            errorMessage.style.display = 'block';
+            alert('An error occurred. Please try again.');
         }
     };
 
-    emailFormOverlay.appendChild(emailForm);
-    document.body.appendChild(emailFormOverlay);
+    document.body.appendChild(emailForm);
 } else {
     loadPDF();
 }
