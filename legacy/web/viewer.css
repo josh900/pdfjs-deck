@@ -3328,7 +3328,7 @@ body.wait::before{
 }
 
 .editorParamsToolbarContainer{
-  width:220px;
+  width:230px;
   margin-bottom:-4px;
 }
 
@@ -3378,7 +3378,7 @@ body.wait::before{
 }
 
 #secondaryToolbarButtonContainer{
-  max-width:220px;
+  max-width:230px;
   min-height:26px;
   max-height:calc(var(--viewer-container-height) - 40px);
   overflow-y:auto;

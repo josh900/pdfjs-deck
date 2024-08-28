@@ -1788,7 +1788,7 @@
             inset-inline-start:0;
             padding-block:2px 3px;
             padding-inline:3px;
-            max-width:220px;
+            max-width:230px;
             width:-moz-max-content;
             width:max-content;
             height:auto;
@@ -2202,7 +2202,7 @@
   }
 
 .dialog.altText #altTextContainer{
-    width:220px;
+    width:230px;
     height:-moz-fit-content;
     height:fit-content;
     display:inline-flex;
@@ -3260,7 +3260,7 @@ body.wait::before{
 
 .findbar{
   inset-inline-start:64px;
-  min-width:220px;
+  min-width:230px;
   background-color:var(--toolbar-bg-color);
 }
 .findbar > div{
@@ -3328,7 +3328,7 @@ body.wait::before{
 }
 
 .editorParamsToolbarContainer{
-  width:220px;
+  width:230px;
   margin-bottom:-4px;
 }
 
@@ -3378,7 +3378,7 @@ body.wait::before{
 }
 
 #secondaryToolbarButtonContainer{
-  max-width:220px;
+  max-width:230px;
   min-height:26px;
   max-height:calc(var(--viewer-container-height) - 40px);
   overflow-y:auto;
