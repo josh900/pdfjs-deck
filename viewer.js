@@ -25,8 +25,7 @@ let pdfjsWorker;
 async function loadPDFJS(version = 'modern') {
     const path = version === 'modern' ? './build' : './build-old';
     try {
-        const pdfModule = await import(`${path}/pdf.mjs`);
-        pdfjsLib = pdfModule;
+        pdfjsLib = await import(`${path}/pdf.mjs`);
         pdfjsWorker = await import(`${path}/pdf.worker.mjs`);
         pdfjsLib.GlobalWorkerOptions.workerSrc = `${path}/pdf.worker.mjs`;
         return true;
@@ -35,7 +34,6 @@ async function loadPDFJS(version = 'modern') {
         return false;
     }
 }
-
 
 async function initializePDFJS() {
     if (await loadPDFJS('modern')) {
@@ -156,7 +154,6 @@ function submitEmail(email) {
     });
 }
 
-// Modify your existing loadPDF function
 async function loadPDF() {
     if (!(await initializePDFJS())) {
         return;
