@@ -1,8 +1,26 @@
-import * as pdfjsLib from './build/pdf.mjs';
 import { encode, decode } from './base64.js';
 
-// Initialize PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+// Initialize PDF.js with fallback mechanism
+let pdfjsLib;
+let workerSrc;
+
+async function initializePDFJS() {
+    try {
+        pdfjsLib = await import('./build/pdf.mjs');
+        workerSrc = './build/pdf.worker.mjs';
+    } catch (error) {
+        console.warn('Failed to load modern PDF.js version, falling back to legacy version', error);
+        try {
+            pdfjsLib = await import('./legacy/build/pdf.mjs');
+            workerSrc = './legacy/build/pdf.worker.mjs';
+        } catch (legacyError) {
+            console.error('Failed to load legacy PDF.js version', legacyError);
+            throw new Error('Unable to load PDF.js');
+        }
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+}
 
 // Variables
 let pdfDoc = null;
@@ -108,20 +126,21 @@ function submitEmail(email) {
     });
 }
 
-function loadPDF() {
+async function loadPDF() {
     loadingIndicator.classList.remove('hidden');
-    pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
+    try {
+        await initializePDFJS();
+        const pdf = await pdfjsLib.getDocument('presentation.pdf').promise;
         pdfDoc = pdf;
         totalSlidesSpan.textContent = pdf.numPages;
         loadingIndicator.classList.add('hidden');
-        // Remove this line: slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
         createThumbnails();
-    }).catch(function (error) {
+    } catch (error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
-    });
+    }
 }
 
 function debounce(func, wait) {
