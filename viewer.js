@@ -19,6 +19,7 @@ let avatarIframe = null;
 let avatarVisible = false;
 let videoElement = null;
 
+let pdfjsLib;
 let pdfjsWorker;
 
 async function loadPDFJS(version = 'modern') {
