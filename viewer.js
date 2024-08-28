@@ -1,25 +1,37 @@
 import { encode, decode } from './base64.js';
 
+const isModernBrowser = typeof Promise.withResolvers === 'function';
+
 // Initialize PDF.js with fallback mechanism
 let pdfjsLib;
 let workerSrc;
 
 async function initializePDFJS() {
-    try {
-        pdfjsLib = await import('./build/pdf.mjs');
-        workerSrc = './build/pdf.worker.mjs';
-    } catch (error) {
-        console.warn('Failed to load modern PDF.js version, falling back to legacy version', error);
+    if (isModernBrowser) {
         try {
-            pdfjsLib = await import('./legacy/build/pdf.mjs');
-            workerSrc = './legacy/build/pdf.worker.mjs';
-        } catch (legacyError) {
-            console.error('Failed to load legacy PDF.js version', legacyError);
-            throw new Error('Unable to load PDF.js');
+            pdfjsLib = await import('./build/pdf.mjs');
+            workerSrc = './build/pdf.worker.mjs';
+            console.log('Using modern PDF.js version');
+        } catch (error) {
+            console.warn('Failed to load modern PDF.js version, falling back to legacy version', error);
+            await loadLegacyVersion();
         }
+    } else {
+        await loadLegacyVersion();
     }
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+}
+
+async function loadLegacyVersion() {
+    try {
+        pdfjsLib = await import('./legacy/build/pdf.mjs');
+        workerSrc = './legacy/build/pdf.worker.mjs';
+        console.log('Using legacy PDF.js version');
+    } catch (legacyError) {
+        console.error('Failed to load legacy PDF.js version', legacyError);
+        throw new Error('Unable to load PDF.js');
+    }
 }
 
 // Variables
@@ -142,6 +154,7 @@ async function loadPDF() {
         loadingIndicator.textContent = 'Error loading PDF';
     }
 }
+
 
 function debounce(func, wait) {
     let timeout;
@@ -599,7 +612,6 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Initialize
 if (getEmail) {
     showEmailForm();
 } else {
