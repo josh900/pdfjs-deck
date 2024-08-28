@@ -19,6 +19,52 @@ let avatarIframe = null;
 let avatarVisible = false;
 let videoElement = null;
 
+let pdfjsLib;
+let pdfjsWorker;
+
+async function loadPDFJS(version = 'modern') {
+    const path = version === 'modern' ? './build' : './build-old';
+    try {
+        pdfjsLib = await import(`${path}/pdf.mjs`);
+        pdfjsWorker = await import(`${path}/pdf.worker.mjs`);
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `${path}/pdf.worker.mjs`;
+        return true;
+    } catch (error) {
+        console.error(`Failed to load ${version} version of PDF.js:`, error);
+        return false;
+    }
+}
+
+async function initializePDFJS() {
+    if (await loadPDFJS('modern')) {
+        console.log('Using modern PDF.js');
+    } else if (await loadPDFJS('old')) {
+        console.log('Using older PDF.js');
+    } else {
+        console.error('Failed to load both modern and older versions of PDF.js');
+        showErrorMessage('Failed to load PDF viewer. Please try again later.');
+        return false;
+    }
+    return true;
+}
+
+function showErrorMessage(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.textContent = message;
+    errorDiv.style.position = 'fixed';
+    errorDiv.style.top = '50%';
+    errorDiv.style.left = '50%';
+    errorDiv.style.transform = 'translate(-50%, -50%)';
+    errorDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+    errorDiv.style.color = 'white';
+    errorDiv.style.padding = '20px';
+    errorDiv.style.borderRadius = '10px';
+    errorDiv.style.zIndex = '9999';
+    document.body.appendChild(errorDiv);
+}
+
+
+
 // DOM elements
 const viewerContainer = document.getElementById('viewerContainer');
 const loadingIndicator = document.getElementById('loadingIndicator');
@@ -108,20 +154,25 @@ function submitEmail(email) {
     });
 }
 
-function loadPDF() {
+async function loadPDF() {
+    if (!(await initializePDFJS())) {
+        return;
+    }
+    
     loadingIndicator.classList.remove('hidden');
-    pdfjsLib.getDocument('presentation.pdf').promise.then(function (pdf) {
+    try {
+        const pdf = await pdfjsLib.getDocument('presentation.pdf').promise;
         pdfDoc = pdf;
         totalSlidesSpan.textContent = pdf.numPages;
         loadingIndicator.classList.add('hidden');
-        // Remove this line: slideInfo.classList.remove('hidden');
         renderPage(pageNum);
         preloadPages(pageNum);
         createThumbnails();
-    }).catch(function (error) {
+    } catch (error) {
         console.error('Error loading PDF:', error);
         loadingIndicator.textContent = 'Error loading PDF';
-    });
+        showErrorMessage('Failed to load the PDF. Please try again later.');
+    }
 }
 
 function debounce(func, wait) {
